@@ -25,7 +25,7 @@ subprojects {
       'jetty':       '9.4.14.v20181114',
       'jquery':      '3.3.1-1',
       'jupiter':     '5.1.1',
-      'metafacture': '5.0.1',
+      'metafacture': 'feature-oai-pmh-SNAPSHOT',
       'mockito':     '2.27.0',
       'requirejs':   '2.3.6',
       'slf4j':       '1.7.21',
@@ -45,6 +45,7 @@ subprojects {
 
   repositories {
     jcenter()
+    mavenLocal()
   }
 
   dependencies {

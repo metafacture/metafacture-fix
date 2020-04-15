@@ -1,1 +1,3 @@
 language: java
+before_install:
+  - sh ./install_snapshots.sh
