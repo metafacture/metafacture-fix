@@ -143,14 +143,16 @@ As well as the project and build customization:
 ![Build details](docs/xtext-setup-2.png)
 
 Visual Studio Code Extension
----------------------------
+----------------------------
+
 The project `org.metafacture.fix.vsc` provides an extension for Visual Studio Code for `fix` via the language server protocol (LSP). In the current state the extension supports auto completion, simple syntax highlighting and auto closing brackets and quotes. This project was created using the [tutorial](https://www.typefox.io/blog/building-a-vs-code-extension-with-xtext-and-the-language-server-protocol) and the corresponding [example](https://github.com/TypeFox/languageserver-example).
 
 Start extension:
 
 1. Install Visual Studio Code / alternative: VS Codium
 2. Install Node.js (including npm)
-3. Checkout metafacture-fix project
+3. Checkout metafacture-fix project:
+`git clone https://github.com/metafacture/metafacture-fix.git -b oersi`
 4. In metafacture-fix execute:
 Unix: `./gradlew installServer`
 Windows: `.\gradlew.bat installServer`
