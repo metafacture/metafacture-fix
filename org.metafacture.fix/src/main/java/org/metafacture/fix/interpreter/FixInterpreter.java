@@ -9,11 +9,14 @@ import org.metafacture.fix.fix.If;
 import org.metafacture.fix.fix.MethodCall;
 import org.metafacture.metamorph.Metafix;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter;
-import org.eclipse.xtext.xbase.lib.InputOutput;
 
 public class FixInterpreter extends XbaseInterpreter {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FixInterpreter.class);
 
     private Metafix metafix;
 
@@ -41,7 +44,7 @@ public class FixInterpreter extends XbaseInterpreter {
             matched = true;
 
             final If ifExpression = (If) expression;
-            InputOutput.println("if: " + ifExpression);
+            LOG.debug("if: {}", ifExpression);
 
             for (final Expression element : ifExpression.getElements()) {
                 process(element);
@@ -49,7 +52,7 @@ public class FixInterpreter extends XbaseInterpreter {
 
             final ElsIf elseIfExpression = ifExpression.getElseIf();
             if (elseIfExpression != null) {
-                InputOutput.println("else if: " + elseIfExpression);
+                LOG.debug("else if: {}", elseIfExpression);
 
                 for (final Expression element : elseIfExpression.getElements()) {
                     process(element);
@@ -58,7 +61,7 @@ public class FixInterpreter extends XbaseInterpreter {
 
             final Else elseExpression = ifExpression.getElse();
             if (elseExpression != null) {
-                InputOutput.println("else: " + elseExpression);
+                LOG.debug("else: {}", elseExpression);
 
                 for (final Expression element : elseExpression.getElements()) {
                     process(element);
@@ -71,7 +74,7 @@ public class FixInterpreter extends XbaseInterpreter {
                 matched = true;
 
                 final Do doExpression = (Do) expression;
-                InputOutput.println("do: " + doExpression);
+                LOG.debug("do: {}", doExpression);
 
                 for (final Expression element : doExpression.getElements()) {
                     process(element);
@@ -82,8 +85,7 @@ public class FixInterpreter extends XbaseInterpreter {
         if (!matched) {
             if (expression instanceof MethodCall) {
                 matched = true;
-                InputOutput.println("method call: " + expression);
-                // TODO
+                LOG.debug("method call: {}", expression);
             }
         }
     }

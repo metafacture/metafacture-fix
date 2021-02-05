@@ -19,6 +19,7 @@ dependencies {
   implementation "org.metafacture:metafacture-javaintegration:${versions.metafacture}"
   implementation "org.metafacture:metafacture-flowcontrol:${versions.metafacture}"
   implementation "org.metafacture:metamorph:${versions.metafacture}"
+  implementation 'org.slf4j:slf4j-api:1.7.21'
 
   testImplementation "org.mockito:mockito-core:${versions.mockito}"
   testImplementation "org.mockito:mockito-junit-jupiter:${versions.mockito}"
