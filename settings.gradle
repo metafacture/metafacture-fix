@@ -1,3 +1,6 @@
 include 'org.metafacture.fix'
 include 'org.metafacture.fix.ide'
 include 'org.metafacture.fix.web'
+
+// change subproject name
+project(":org.metafacture.fix").name = "metafacture-fix"
