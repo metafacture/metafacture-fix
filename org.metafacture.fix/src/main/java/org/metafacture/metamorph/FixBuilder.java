@@ -262,12 +262,12 @@ public class FixBuilder { // checkstyle-disable-line ClassDataAbstractionCouplin
     }
 
     private boolean testConditional(final String conditional, final EList<String> p) {
-        System.out.printf("<IF>: %s p: %s\n", conditional, p);
+//        System.out.printf("<IF>: %s p: %s\n", conditional, p);
         boolean result = false;
         final String field = resolvedAttribute(p, 1);
         final String value = resolvedAttribute(p, 2);
         final Multimap<String, String> map = metafix.getCurrentRecord();
-        System.out.printf("<%s>: field: %s value: %s in: %s\n", conditional, field, value, map);
+//        System.out.printf("<%s>: field: %s value: %s in: %s\n", conditional, field, value, map);
         switch (conditional) {
             case "any_match":
                 result = map.containsKey(field) && map.get(field).stream().anyMatch(v -> v.matches(value));
@@ -283,7 +283,7 @@ public class FixBuilder { // checkstyle-disable-line ClassDataAbstractionCouplin
     private void processFunction(final Expression expression, final List<String> params, final String source) {
         final FixFunction functionToRun = findFixFunction(expression);
         if (functionToRun != null) {
-            System.out.printf("Running Fix function %s, params %s, source %s\n", expression.getName(), params, source);
+//            System.out.printf("Running Fix function %s, params %s, source %s\n", expression.getName(), params, source);
             functionToRun.apply(this, expression, params, source);
         }
         else {

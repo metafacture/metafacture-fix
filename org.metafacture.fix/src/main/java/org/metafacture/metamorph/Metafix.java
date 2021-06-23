@@ -281,7 +281,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, NamedValuePipe, Maps
         buffer.clear();
         buffer.startRecord(identifier);
 
-        System.out.printf("Start record: %s\n", currentRecord);
+//        System.out.printf("Start record: %s\n", currentRecord);
         flattener.startRecord(identifier);
         entityCountStack.clear();
 
@@ -318,7 +318,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, NamedValuePipe, Maps
         flattener.endRecord();
         buffer.endRecord();
         if (recordMode && needsReplay) {
-            System.out.printf("End record, replay with: %s\n", currentRecord);
+//            System.out.printf("End record, replay with: %s\n", currentRecord);
             new FixBuilder(this, interceptorFactory).walk(fix);
             buffer.replay();
             needsReplay = false;
@@ -416,7 +416,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, NamedValuePipe, Maps
     }
 
     private void send(final String key, final String value, final List<NamedValueReceiver> dataList) {
-        System.out.printf("Sending '%s':'%s' to %s\n", key, value, dataList);
+//        System.out.printf("Sending '%s':'%s' to %s\n", key, value, dataList);
         currentRecord.put(key, value);
         for (final NamedValueReceiver data : dataList) {
             data.receive(key, value, null, recordCount, currentEntityCount);
