@@ -1,0 +1,87 @@
+plugins {
+  id 'com.adarshr.test-logger' version '1.7.0'
+  id 'maven-publish'
+}
+
+dependencies {
+  implementation "org.eclipse.xtext:org.eclipse.xtext:${versions.xtext}"
+  implementation "org.eclipse.xtext:org.eclipse.xtext.xbase:${versions.xtext}"
+  implementation "com.google.guava:guava:${versions.guava}"
+  implementation "org.slf4j:slf4j-api:${versions.slf4j}"
+
+  testImplementation "org.junit.jupiter:junit-jupiter-api:${versions.junit_jupiter}"
+  testImplementation "org.junit.platform:junit-platform-launcher:${versions.junit_platform}"
+  testImplementation "org.eclipse.xtext:org.eclipse.xtext.testing:${versions.xtext}"
+  testImplementation "org.eclipse.xtext:org.eclipse.xtext.xbase.testing:${versions.xtext}"
+
+  testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${versions.junit_jupiter}"
+
+  runtimeOnly "org.slf4j:slf4j-simple:${versions.slf4j}"
+
+  implementation "org.metafacture:metafacture-commons:${versions.metafacture}"
+  implementation "org.metafacture:metafacture-mangling:${versions.metafacture}"
+  implementation "org.metafacture:metafacture-javaintegration:${versions.metafacture}"
+  implementation "org.metafacture:metafacture-flowcontrol:${versions.metafacture}"
+  implementation "org.metafacture:metamorph:${versions.metafacture}"
+
+  testImplementation "org.mockito:mockito-core:${versions.mockito}"
+  testImplementation "org.mockito:mockito-junit-jupiter:${versions.mockito}"
+}
+
+configurations {
+  mwe2 {
+    extendsFrom implementation
+  }
+}
+
+dependencies {
+  mwe2 'org.eclipse.emf:org.eclipse.emf.mwe2.launch'
+  mwe2 "org.eclipse.xtext:org.eclipse.xtext.common.types:${versions.xtext}"
+  mwe2 "org.eclipse.xtext:org.eclipse.xtext.xtext.generator:${versions.xtext}"
+  mwe2 'org.eclipse.xtext:xtext-antlr-generator'
+}
+
+test {
+  useJUnitPlatform()
+
+  testlogger {
+    showFullStackTraces true
+  }
+}
+
+task install(dependsOn: publishToMavenLocal,
+    description: "Installs the 'archives' artifacts into the local Maven repository. [deprecated]") {
+  doFirst { println "This task is deprecated; use 'publishToMavenLocal' instead." }
+}
+
+task validateFixFile(type: JavaExec) {
+  mainClass = 'org.metafacture.metafix.FixStandaloneSetup'
+  classpath = sourceSets.main.runtimeClasspath
+}
+
+def xtextFile = 'src/main/java/org/metafacture/metafix/Fix.xtext'
+
+task validateXtextLanguage(type: JavaExec) {
+  mainClass = 'org.metafacture.metafix.validation.XtextValidator'
+  classpath = sourceSets.main.runtimeClasspath
+  args += xtextFile
+}
+
+task generateXtextLanguage(type: JavaExec) {
+  mainClass = 'org.eclipse.emf.mwe2.launch.runtime.Mwe2Launcher'
+  classpath = configurations.mwe2
+  inputs.file 'src/main/java/org/metafacture/metafix/GenerateFix.mwe2'
+  inputs.file xtextFile
+  outputs.dir 'src/main/xtext-gen'
+  args += 'src/main/java/org/metafacture/metafix/GenerateFix.mwe2'
+  args += '-p'
+  args += "rootPath=/${projectDir}/.."
+}
+
+processResources.dependsOn(generateXtextLanguage)
+generateXtext.dependsOn(generateXtextLanguage)
+compileJava.dependsOn(generateXtextLanguage)
+clean.dependsOn(cleanGenerateXtextLanguage)
+check.dependsOn(validateXtextLanguage)
+
+eclipse.classpath.plusConfigurations += [configurations.mwe2]
