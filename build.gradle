@@ -37,7 +37,7 @@ subprojects {
   }
 
   group = 'org.metafacture'
-  version = '0.2.0-rc6'
+  version = '0.2.0-rc7'
 
   apply plugin: 'checkstyle'
   apply plugin: 'eclipse'
