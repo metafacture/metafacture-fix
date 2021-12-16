@@ -18,6 +18,7 @@
 
 package org.metafacture.metafix;
 
+import org.metafacture.framework.MetafactureException;
 import org.metafacture.framework.StandardEventNames;
 import org.metafacture.framework.StreamPipe;
 import org.metafacture.framework.StreamReceiver;
@@ -25,17 +26,22 @@ import org.metafacture.framework.helpers.DefaultStreamReceiver;
 import org.metafacture.mangling.StreamFlattener;
 import org.metafacture.metafix.fix.Expression;
 import org.metafacture.metafix.fix.Fix;
+import org.metafacture.metamorph.api.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -48,29 +54,45 @@ import java.util.Map;
  * @author Christoph Böhme (Metamorph)
  * @author Fabian Steeg (Metafix)
  */
-public class Metafix implements StreamPipe<StreamReceiver> {
+public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle-disable-line ClassDataAbstractionCoupling
 
     public static final String VAR_START = "$[";
     public static final String VAR_END = "]";
     public static final Map<String, String> NO_VARS = Collections.emptyMap();
-    private static final String ENTITIES_NOT_BALANCED = "Entity starts and ends are not balanced";
+    public static final String ARRAY_MARKER = "[]";
 
     private static final Logger LOG = LoggerFactory.getLogger(Metafix.class);
+
+    private static final String ENTITIES_NOT_BALANCED = "Entity starts and ends are not balanced";
+
+    private final Deque<Integer> entityCountStack = new LinkedList<>();
+    private final List<Closeable> resources = new ArrayList<>();
+    private final List<Expression> expressions = new ArrayList<>();
+    private final Map<String, Map<String, String>> maps = new HashMap<>();
+    private final StreamFlattener flattener = new StreamFlattener();
 
     // TODO: Use SimpleRegexTrie / WildcardTrie for wildcard, alternation and character class support
     private Record currentRecord = new Record();
     private Fix fix;
-    private final List<Expression> expressions = new ArrayList<>();
-    private Map<String, String> vars = NO_VARS;
-    private final StreamFlattener flattener = new StreamFlattener();
-    private final Deque<Integer> entityCountStack = new LinkedList<>();
+    private Map<String, String> vars = new HashMap<>();
     private int entityCount;
     private StreamReceiver outputStreamReceiver;
     private String recordIdentifier;
     private List<Value.Hash> entities = new ArrayList<>();
 
     public Metafix() {
-        init();
+        flattener.setReceiver(new DefaultStreamReceiver() {
+            @Override
+            public void literal(final String name, final String value) {
+                // TODO: keep flattener as option?
+                // add(currentRecord, name, value);
+            }
+        });
+    }
+
+    public Metafix(final Map<String, String> newVars) {
+        this();
+        vars.putAll(newVars);
     }
 
     public Metafix(final String fixDef) throws FileNotFoundException {
@@ -81,38 +103,23 @@ public class Metafix implements StreamPipe<StreamReceiver> {
         this(fixDef.endsWith(".fix") ? new FileReader(fixDef) : new StringReader(fixDef), vars);
     }
 
-    public Metafix(final Reader morphDef) {
-        this(morphDef, NO_VARS);
+    public Metafix(final Reader fixDef) {
+        this(fixDef, NO_VARS);
     }
 
     public Metafix(final Reader fixDef, final Map<String, String> vars) {
-        buildPipeline(fixDef, vars);
-        init();
+        this(vars);
+        fix = FixStandaloneSetup.parseFix(fixDef);
     }
 
     public List<Expression> getExpressions() {
         return expressions;
     }
 
-    private void init() {
-        flattener.setReceiver(new DefaultStreamReceiver() {
-            @Override
-            public void literal(final String name, final String value) {
-                // TODO: keep flattener as option?
-                // add(currentRecord, name, value);
-            }
-        });
-    }
-
-    private void buildPipeline(final Reader fixDef, final Map<String, String> theVars) {
-        final Fix f = FixStandaloneSetup.parseFix(fixDef);
-        this.fix = f;
-        this.vars = theVars;
-    }
-
     @Override
     public void startRecord(final String identifier) {
         currentRecord = new Record();
+        currentRecord.putVirtualField(StandardEventNames.ID, new Value(identifier));
         LOG.debug("Start record: {}", identifier);
         flattener.startRecord(identifier);
         entityCountStack.clear();
@@ -120,7 +127,6 @@ public class Metafix implements StreamPipe<StreamReceiver> {
         entityCountStack.add(Integer.valueOf(entityCount));
         recordIdentifier = identifier;
         entities = new ArrayList<>();
-        literal(StandardEventNames.ID, identifier);
     }
 
     @Override
@@ -131,16 +137,11 @@ public class Metafix implements StreamPipe<StreamReceiver> {
         }
         flattener.endRecord();
         LOG.debug("End record, walking fix: {}", currentRecord);
-        final RecordTransformer transformer = new RecordTransformer(currentRecord, vars, fix);
-        currentRecord = transformer.transform();
+        currentRecord = new RecordTransformer(this, fix).transform();
         if (!currentRecord.getReject()) {
             outputStreamReceiver.startRecord(recordIdentifier);
             LOG.debug("Sending results to {}", outputStreamReceiver);
-            currentRecord.forEach((f, v) -> {
-                if (!f.startsWith("_")) {
-                    emit(f, v);
-                }
-            });
+            currentRecord.forEach(this::emit);
             outputStreamReceiver.endRecord();
         }
     }
@@ -211,6 +212,15 @@ public class Metafix implements StreamPipe<StreamReceiver> {
 
     @Override
     public void closeStream() {
+        for (final Closeable closeable : resources) {
+            try {
+                closeable.close();
+            }
+            catch (final IOException e) {
+                throw new MetafactureException("Error while executing the Metafix transformation pipeline: " + e.getMessage(), e);
+            }
+        }
+
         outputStreamReceiver.closeStream();
     }
 
@@ -236,6 +246,36 @@ public class Metafix implements StreamPipe<StreamReceiver> {
 
     public Record getCurrentRecord() {
         return currentRecord;
+    }
+
+    @Override
+    public Collection<String> getMapNames() {
+        return Collections.unmodifiableSet(maps.keySet());
+    }
+
+    @Override
+    public Map<String, String> getMap(final String mapName) {
+        return maps.getOrDefault(mapName, Collections.emptyMap());
+    }
+
+    @Override
+    public String getValue(final String mapName, final String key) {
+        final Map<String, String> map = getMap(mapName);
+        return map.containsKey(key) ? map.get(key) : map.get(Maps.DEFAULT_MAP_KEY);
+    }
+
+    @Override
+    public Map<String, String> putMap(final String mapName, final Map<String, String> map) {
+        if (map instanceof Closeable) {
+            resources.add((Closeable) map);
+        }
+
+        return maps.put(mapName, map);
+    }
+
+    @Override
+    public String putValue(final String mapName, final String key, final String value) {
+        return maps.computeIfAbsent(mapName, k -> new HashMap<>()).put(key, value);
     }
 
 }

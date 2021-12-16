@@ -29,7 +29,6 @@ import org.metafacture.metafix.fix.MethodCall;
 import org.metafacture.metafix.fix.Options;
 import org.metafacture.metafix.fix.Unless;
 
-import org.eclipse.emf.common.util.EList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +38,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Transform a record using a Fix
+ * Transform a record using a {@link Fix}.
  *
  * @author Fabian Steeg
  *
@@ -48,14 +47,16 @@ class RecordTransformer {
 
     private static final Logger LOG = LoggerFactory.getLogger(RecordTransformer.class);
 
-    private Fix fix;
-    private Record record;
-    private Map<String, String> vars;
+    private final Metafix metafix;
+    private final Fix fix;
 
-    RecordTransformer(final Record record, final Map<String, String> vars, final Fix fix) {
-        this.record = record.shallowClone();
-        this.vars = vars;
+    private Record record;
+
+    RecordTransformer(final Metafix metafix, final Fix fix) {
+        this.metafix = metafix;
         this.fix = fix;
+
+        record = metafix.getCurrentRecord().shallowClone();
     }
 
     Record transform() {
@@ -68,12 +69,16 @@ class RecordTransformer {
     }
 
     private String resolveVars(final String string) {
-        return string == null ? null : StringUtil.format(string, Metafix.VAR_START, Metafix.VAR_END, false, vars);
+        return string == null ? null : StringUtil.format(string, Metafix.VAR_START, Metafix.VAR_END, false, metafix.getVars());
+    }
+
+    private List<String> resolveParams(final List<String> params) {
+        return params.stream().map(this::resolveVars).collect(Collectors.toList());
     }
 
     private void processSubexpressions(final List<Expression> expressions) {
         for (final Expression sub : expressions) {
-            final EList<String> params = sub.getParams();
+            final List<String> params = resolveParams(sub.getParams());
             if (sub instanceof Do) {
                 processBind((Do) sub, params);
             }
@@ -89,24 +94,36 @@ class RecordTransformer {
         }
     }
 
-    private void processBind(final Do theDo, final EList<String> params) {
+    private void processBind(final Do theDo, final List<String> params) {
         if (theDo.getName().equals("list")) { // TODO impl multiple binds via FixBind enum
             final Map<String, String> options = options(theDo.getOptions());
-            final Record fullRecord = record.shallowClone();
-
-            record.findList(options.get("path"), a -> a.forEach(value -> {
-                // for each value, bind the current record/scope/context to the given var name:
-                record = new Record();
-                record.put(options.get("var"), value);
-
-                processSubexpressions(theDo.getElements());
-                record.remove(options.get("var"));
-
-                // and remember the things we added while bound (this probably needs some tweaking):
-                fullRecord.addAll(record);
-            }));
-
-            record = fullRecord;
+            record.findList(options.get("path"), a -> {
+                for (int i = 0; i < a.size(); ++i) {
+                    final Value value = a.get(i);
+                    final String var = options.get("var");
+                    // with var -> keep full record in scope, add the var:
+                    if (var != null) {
+                        record.put(var, value);
+                        processSubexpressions(theDo.getElements());
+                        record.remove(var);
+                    }
+                    // w/o var -> use the currently bound value as the record:
+                    else {
+                        if (value.isHash()) {
+                            final Record fullRecord = record;
+                            record = new Record();
+                            record.addAll(value.asHash());
+                            processSubexpressions(theDo.getElements());
+                            a.set(i, new Value(record));
+                            record = fullRecord;
+                        }
+                        else {
+                            // TODO: bind to arrays (if that makes sense) and strings (access with '.')
+                            throw new IllegalStateException("expected hash, got " + value);
+                        }
+                    }
+                }
+            });
         }
         else {
             LOG.warn("Unprocessed bind: {}", theDo);
@@ -117,13 +134,13 @@ class RecordTransformer {
         }
     }
 
-    private void processIf(final If ifExp, final EList<String> parameters) {
+    private void processIf(final If ifExp, final List<String> params) {
         final ElsIf elsIfExp = ifExp.getElseIf();
         final Else elseExp = ifExp.getElse();
-        if (testConditional(ifExp.getName(), parameters)) {
+        if (testConditional(ifExp.getName(), params)) {
             processSubexpressions(ifExp.getElements());
         }
-        else if (elsIfExp != null && testConditional(elsIfExp.getName(), elsIfExp.getParams())) {
+        else if (elsIfExp != null && testConditional(elsIfExp.getName(), resolveParams(elsIfExp.getParams()))) {
             processSubexpressions(elsIfExp.getElements());
         }
         else if (elseExp != null) {
@@ -131,13 +148,13 @@ class RecordTransformer {
         }
     }
 
-    private void processUnless(final Unless unless, final EList<String> parameters) {
-        if (!testConditional(unless.getName(), parameters)) {
+    private void processUnless(final Unless unless, final List<String> params) {
+        if (!testConditional(unless.getName(), params)) {
             processSubexpressions(unless.getElements());
         }
     }
 
-    private boolean testConditional(final String conditional, final EList<String> params) {
+    private boolean testConditional(final String conditional, final List<String> params) {
         LOG.debug("<IF>: {} parameters: {}", conditional, params);
         boolean result = false;
         if ("exists".equals(conditional)) {
@@ -160,16 +177,15 @@ class RecordTransformer {
         // functionFactory.registerClass("not_equals", NotEquals.class);
         // functionFactory.registerClass("replace_all", Replace.class);
         // final Function function = functionFactory.newInstance(conditional,
-        // resolvedAttributeMap(parameters, theIf.getOptions()));
+        // resolvedAttributeMap(params, theIf.getOptions()));
         return result;
     }
 
     private void processFunction(final Expression expression, final List<String> params) {
         try {
             final FixMethod method = FixMethod.valueOf(expression.getName());
-            final List<String> resolvedParams = params.stream().map(this::resolveVars).collect(Collectors.toList());
             final Map<String, String> options = options(((MethodCall) expression).getOptions());
-            method.apply(record, resolvedParams, options);
+            method.apply(metafix, record, params, options);
         }
         catch (final IllegalArgumentException e) {
             throw new MetafactureException(e);

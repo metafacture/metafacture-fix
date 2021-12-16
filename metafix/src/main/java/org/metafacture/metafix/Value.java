@@ -206,10 +206,6 @@ public class Value {
         }
     }
 
-    public Value merge(final Value value) {
-        return asList(a1 -> value.asList(a2 -> a2.forEach(a1::add)));
-    }
-
     @Override
     public String toString() {
         final String result;
@@ -255,7 +251,7 @@ public class Value {
 
         public abstract String asString();
 
-        private enum InsertMode {
+        protected enum InsertMode {
 
             REPLACE {
                 @Override
@@ -266,9 +262,24 @@ public class Value {
             APPEND {
                 @Override
                 void apply(final Hash hash, final String field, final String value) {
-                    final Value oldValue = hash.get(field);
-                    final Value newValue = new Value(value);
-                    hash.put(field, oldValue == null ? newValue : oldValue.merge(newValue));
+                    hash.add(field, new Value(value));
+                }
+            },
+            /* For an indexed representation of arrays as hashes with 1, 2, 3 etc. keys.
+             * i.e. ["a", "b", "c"] as { "1":"a", "2":"b", "3": "c" }
+             * This is what is produced by JsonDecoder and Metafix itself for arrays.
+             * TODO? maybe this would be a good general internal representation, resulting
+             * in every value being either a hash or a string, no more separate array type.*/
+            INDEXED {
+                @Override
+                void apply(final Hash hash, final String field, final String value) {
+                    final Value newValue = field.equals(APPEND_FIELD) ? new Value(value) :
+                        newHash(h -> h.put(field, new Value(value)));
+                    hash.add(nextIndex(hash), newValue);
+                }
+
+                private String nextIndex(final Hash hash) {
+                    return "" + (hash.size() + 1) /* TODO? check if keys are actually all ints? */;
                 }
             };
 
@@ -385,12 +396,16 @@ public class Value {
             return result;
         }
 
-        private void insert(final AbstractValueType.InsertMode mode, final String[] fields, final String newValue) {
+        private void insert(final InsertMode mode, final String[] fields, final String newValue) {
             switch (fields[0]) {
                 case ASTERISK:
                     // TODO: WDCD? descend into the array?
                     break;
                 case APPEND_FIELD:
+                    if (fields.length == 1) {
+                        add(new Value(newValue));
+                        return;
+                    }
                     add(newHash(h -> h.insert(mode, tail(fields), newValue)));
                     break;
                 case LAST_FIELD:
@@ -419,6 +434,11 @@ public class Value {
                     break;
             }
         }
+
+        /*package-private*/ void set(final int index, final Value value) {
+            list.set(index, value);
+        }
+
     }
 
     /**
@@ -467,7 +487,7 @@ public class Value {
         }
 
         /**
-         * Adds a field/value pair to this hash, provided it's not {@code null}.
+         * Adds a field/value pair to this hash, provided it's not {@link #isNull(Value) null}.
          *
          * @param field the field name
          * @param value the metadata value
@@ -492,11 +512,11 @@ public class Value {
         }
 
         public Value replace(final String fieldPath, final String newValue) {
-            return insert(AbstractValueType.InsertMode.REPLACE, fieldPath, newValue);
+            return insert(InsertMode.REPLACE, fieldPath, newValue);
         }
 
         public Value append(final String fieldPath, final String newValue) {
-            return insert(AbstractValueType.InsertMode.APPEND, fieldPath, newValue);
+            return insert(InsertMode.APPEND, fieldPath, newValue);
         }
 
         /**
@@ -561,23 +581,26 @@ public class Value {
             hash.forEach(this::add);
         }
 
+        /**
+         * {@link #put(String, Value) Adds} a field/value pair to this hash,
+         * potentially merging with an existing value.
+         *
+         * @param field the field name
+         * @param newValue the new metadata value
+         */
         public void add(final String field, final Value newValue) {
             final Value oldValue = get(field);
-            put(field, oldValue == null ? newValue : oldValue.merge(newValue));
+            put(field, oldValue == null ? newValue : oldValue.asList(a1 -> newValue.asList(a2 -> a2.forEach(a1::add))));
         }
 
-        public Value insert(final AbstractValueType.InsertMode mode, final String fieldPath, final String newValue) {
+        public Value insert(final InsertMode mode, final String fieldPath, final String newValue) {
             return insert(mode, split(fieldPath), newValue);
         }
 
-        private Value insert(final AbstractValueType.InsertMode mode, final String[] fields, final String newValue) {
+        private Value insert(final InsertMode mode, final String[] fields, final String newValue) {
             final String field = fields[0];
-            if (field.equals(APPEND_FIELD) || field.equals(LAST_FIELD)) {
-                // TODO: WDCD? $last, $append skipped for hashes here:
-                return insert(mode, tail(fields), newValue);
-            }
             if (fields.length == 1) {
-                if (fields[0].equals(ASTERISK)) {
+                if (field.equals(ASTERISK)) {
                     //TODO: WDCD? insert into each element?
                 }
                 else {
@@ -585,16 +608,21 @@ public class Value {
                 }
             }
             else {
+                if (field.equals(APPEND_FIELD) || field.equals(LAST_FIELD)) {
+                    // TODO: WDCD? $last, $append skipped for hashes here:
+                    return insert(mode, tail(fields), newValue);
+                }
                 if (!containsField(field)) {
                     put(field, newHash());
                 }
-
                 final Value value = get(field);
                 if (value != null) {
                     switch (value.type) {
                         // TODO: move impl into enum elements, here call only value.insert
                         case Hash:
-                            value.asHash().insert(mode, tail(fields), newValue);
+                            // if the field is marked as array, this hash should be smth. like { 1=a, 2=b }
+                            final boolean isIndexedArray = field.endsWith(Metafix.ARRAY_MARKER);
+                            value.asHash().insert(isIndexedArray ? InsertMode.INDEXED : mode, tail(fields), newValue);
                             break;
                         case Array:
                             value.asArray().insert(mode, tail(fields), newValue);
@@ -664,7 +692,12 @@ public class Value {
                         // TODO: do something here?
                         break;
                     case Hash:
-                        appendValue(newName, v.asHash().find(tail(newName)));
+                        if (newName.length == 1) {
+                            add(newName[0], v);
+                        }
+                        else {
+                            appendValue(newName, v.asHash().find(tail(newName)));
+                        }
                         break;
                     default:
                         break;
