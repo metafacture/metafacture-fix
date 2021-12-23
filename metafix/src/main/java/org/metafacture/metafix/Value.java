@@ -841,7 +841,14 @@ public class Value {
                         map.remove(f);
 
                         if (operator != null) {
-                            value.asList(a -> a.forEach(v -> append(f, operator.apply(v.toString()))));
+                            value.asList(a -> a.forEach(v -> {
+                                if (isIndexedArray(v)) {
+                                    processIndexedArray(operator, f, v.asHash());
+                                }
+                                else {
+                                    append(f, operator.apply(v.toString()));
+                                }
+                            }));
                         }
                     }
                     else {
@@ -849,6 +856,24 @@ public class Value {
                     }
                 }
             });
+        }
+
+        private void processIndexedArray(final UnaryOperator<String> operator, final String field, final Hash hash) {
+            // TODO: we need recursion here for proper nesting, align with #102
+            hash.map.values().forEach(value -> {
+                if (value.isHash()) {
+                    value.asHash().map.values().forEach(nested -> {
+                        append(field, operator.apply(nested.toString()));
+                    });
+                }
+                else {
+                    append(field, operator.apply(value.toString()));
+                }
+            });
+        }
+
+        private boolean isIndexedArray(final Value v) {
+            return v.isHash() && v.asHash().map.keySet().stream().allMatch(Value::isNumber);
         }
 
         /**
