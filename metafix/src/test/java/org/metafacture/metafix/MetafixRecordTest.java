@@ -1744,7 +1744,7 @@ public class MetafixRecordTest {
     }
 
     @Test
-    public void XXX() {
+    public void xxx() {
     }
 
 }

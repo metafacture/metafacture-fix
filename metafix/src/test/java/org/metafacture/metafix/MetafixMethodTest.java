@@ -479,7 +479,7 @@ public class MetafixMethodTest {
     }
 
     @Test
-    public void XXX() {
+    public void xxx() {
     }
 
 }
