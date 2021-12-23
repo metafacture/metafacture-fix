@@ -477,4 +477,9 @@ public class MetafixMethodTest {
                 o.get().endRecord();
             });
     }
+
+    @Test
+    public void XXX() {
+    }
+
 }

@@ -105,6 +105,10 @@ public class Value {
         this.string = string;
     }
 
+    public Value(final int integer) {
+        this(String.valueOf(integer));
+    }
+
     public static Value newArray() {
         return newArray(null);
     }
@@ -815,6 +819,18 @@ public class Value {
                         break;
                     default:
                         break;
+                }
+            }
+        }
+
+        public void transformField(final String field, final UnaryOperator<Value> operator) {
+            final Value oldValue = find(field);
+
+            if (oldValue != null) {
+                final Value newValue = operator.apply(oldValue);
+
+                if (newValue != null) {
+                    insert(InsertMode.REPLACE, split(field), newValue);
                 }
             }
         }
