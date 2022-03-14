@@ -19,8 +19,6 @@ package org.metafacture.metafix;
 import org.metafacture.metafix.Value.Array;
 import org.metafacture.metafix.Value.Hash;
 
-import com.google.common.base.Joiner;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -109,7 +107,7 @@ import java.util.Map;
 
     @Override
     public String toString() {
-        return Joiner.on(".").join(Arrays.asList(path));
+        return String.join(".", path);
     }
 
     /*package-private*/ int size() {
