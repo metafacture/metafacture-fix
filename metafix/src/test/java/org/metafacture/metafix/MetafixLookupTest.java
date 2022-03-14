@@ -33,6 +33,7 @@ import java.util.Arrays;
  * @author Fabian Steeg
  */
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(MetafixToDo.Extension.class)
 public class MetafixLookupTest {
 
     private static final String CSV_MAP = "src/test/resources/org/metafacture/metafix/maps/test.csv";
@@ -84,6 +85,67 @@ public class MetafixLookupTest {
                 o.get().literal("title", "Moin zäme");
                 o.get().literal("title", "Tach");
                 o.get().endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void shouldLookupInternalArrayWithAsterisk() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('title', 'Aloha')",
+                LOOKUP + " Aloha: Alohaeha)"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
+                o.get().literal("title", "Alohaeha");
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void shouldLookupCopiedInternalArrayWithAsterisk() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('data', 'Aloha')",
+                "set_array('title')",
+                "copy_field('data', 'title')",
+                LOOKUP + " Aloha: Alohaeha)"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
+                o.get().literal("data", "Aloha");
+                o.get().literal("title", "Alohaeha");
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
+    public void shouldLookupCopiedExternalArrayWithAsterisk() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('title')",
+                "copy_field('data', 'title')",
+                LOOKUP + " Aloha: Alohaeha)"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.literal("data", "Aloha");
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
+                o.get().literal("data", "Aloha");
+                o.get().literal("title", "Alohaeha");
                 o.get().endRecord();
             }
         );
