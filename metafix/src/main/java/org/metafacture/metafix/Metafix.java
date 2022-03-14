@@ -224,10 +224,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
             final Value entity = entities.get(index);
             entity.matchType()
                 .ifArray(a -> a.add(value))
-                .ifHash(h -> {
-                    value.updatePath(entity, name);
-                    h.add(name, value);
-                })
+                .ifHash(h -> h.add(name, value.updatePath(entity, name)))
                 .orElseThrow();
         }
     }

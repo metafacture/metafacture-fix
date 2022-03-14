@@ -122,7 +122,7 @@ public enum FixMethod implements FixFunction {
         public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
             final String oldName = params.get(0);
             final String newName = params.get(1);
-            Value.asList(record.get(oldName), a -> a.forEach(v -> record.add(newName, v)));
+            Value.asList(record.get(oldName), a -> a.forEach(newValue -> record.add(newName, newValue.updatePath(oldName, newName))));
         }
     },
     format {
@@ -153,8 +153,8 @@ public enum FixMethod implements FixFunction {
         public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
             final String oldName = params.get(0);
             final String newName = params.get(1);
-            Value.asList(record.get(oldName), a -> a.forEach(v -> {
-                record.add(newName, v);
+            Value.asList(record.get(oldName), a -> a.forEach(newValue -> {
+                record.add(newName, newValue.updatePath(oldName, newName));
                 record.remove(oldName);
             }));
         }

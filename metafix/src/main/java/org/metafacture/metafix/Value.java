@@ -256,13 +256,21 @@ public class Value {
         return path;
     }
 
+    /*package-private*/ Value updatePath(final String oldName, final String newName) {
+        if (getPath() != null) {
+            this.path = getPath().replace(oldName, newName);
+        }
+        return this;
+    }
+
     // Update a path like author.label in a container value like author.1 to author.1.label:
-    /*package-private*/ void updatePath(final Value container, final String defaultPath) {
+    /*package-private*/ Value updatePath(final Value container, final String defaultPath) {
         if (container.getPath() != null) {
             final String[] pathSegments = split(getPath() != null ? getPath() : defaultPath);
             final String lastSegment = pathSegments[pathSegments.length - 1];
             this.path = container.getPath() + "." + lastSegment;
         }
+        return this;
     }
 
     enum Type {
