@@ -94,6 +94,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
                 // TODO use full path here to insert only once?
                 // new FixPath(name).insertInto(currentRecord, InsertMode.APPEND, new Value(value));
             }
+
         });
     }
 
@@ -220,9 +221,13 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
             currentRecord.add(name, value);
         }
         else {
-            entities.get(index).matchType()
+            final Value entity = entities.get(index);
+            entity.matchType()
                 .ifArray(a -> a.add(value))
-                .ifHash(h -> h.add(name, value))
+                .ifHash(h -> {
+                    value.updatePath(entity, name);
+                    h.add(name, value);
+                })
                 .orElseThrow();
         }
     }

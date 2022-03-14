@@ -49,7 +49,7 @@ public class Value {
 
     private final Type type;
 
-    private final String path;
+    private String path;
 
     public Value(final Array array) {
         type = array != null ? Type.Array : null;
@@ -254,6 +254,15 @@ public class Value {
 
     public String getPath() {
         return path;
+    }
+
+    // Update a path like author.label in a container value like author.1 to author.1.label:
+    /*package-private*/ void updatePath(final Value container, final String defaultPath) {
+        if (container.getPath() != null) {
+            final String[] pathSegments = split(getPath() != null ? getPath() : defaultPath);
+            final String lastSegment = pathSegments[pathSegments.length - 1];
+            this.path = container.getPath() + "." + lastSegment;
+        }
     }
 
     enum Type {
@@ -557,7 +566,23 @@ public class Value {
          */
         public void add(final String field, final Value newValue) {
             final Value oldValue = new FixPath(field).findIn(this);
-            put(field, oldValue == null ? newValue : oldValue.asList(oldVals -> newValue.asList(newVals -> newVals.forEach(oldVals::add))));
+            if (oldValue == null) {
+                put(field, newValue);
+            }
+            else {
+                if (!oldValue.isArray()) { // convert single val to first in array
+                    oldValue.path = (oldValue.getPath() != null ? oldValue.getPath() : field) + ".1";
+                    oldValue.matchType().ifHash(h -> h.forEach((k, v) -> v.updatePath(oldValue, field)));
+                }
+                put(field, oldValue.asList(oldVals -> newValue.asList(newVals -> {
+                    for (int i = 0; i < newVals.size(); ++i) {
+                        final Value value = newVals.get(i);
+                        value.path = (value.getPath() != null ? value.getPath() : field) + "." + (i + 1 + oldVals.size());
+                        value.matchType().ifHash(h -> h.forEach((k, v) -> v.updatePath(oldValue, field)));
+                        oldVals.add(value);
+                    }
+                })));
+            }
         }
 
         /**

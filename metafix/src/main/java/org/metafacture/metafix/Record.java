@@ -203,7 +203,8 @@ public class Record extends Value.Hash {
         Value.asList(found, results -> {
             for (int i = results.size() - 1; i >= 0; --i) {
                 final Value oldValue = results.get(i);
-                final FixPath insertPath = findPath.to(oldValue, i);
+                final FixPath insertPath = findPath.hasWildcard() && oldValue.getPath() != null ?
+                        new FixPath(oldValue.getPath()) : findPath;
                 oldValue.matchType()
                         .ifString(s -> {
                             final String newValue = operator.apply(s);

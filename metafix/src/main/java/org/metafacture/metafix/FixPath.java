@@ -19,6 +19,8 @@ package org.metafacture.metafix;
 import org.metafacture.metafix.Value.Array;
 import org.metafacture.metafix.Value.Hash;
 
+import com.google.common.base.Joiner;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -107,16 +109,12 @@ import java.util.Map;
 
     @Override
     public String toString() {
-        return Arrays.asList(path).toString();
+        return Joiner.on(".").join(Arrays.asList(path));
     }
 
     /*package-private*/ int size() {
         return path.length;
     }
-
-    // TODO: this is still very much work in progress, I think we should
-    // try to replace this with consistent usage of Value#getPath
-    // (e.g. take care of handling repeated fields and their paths)
 
     /*package-private*/ void throwIfNonString(final Value value) {
         final boolean isNonString = value != null &&
@@ -129,32 +127,8 @@ import java.util.Map;
         }
     }
 
-    /*package-private*/ FixPath to(final Value value, final int i) {
-        final FixPath result;
-        // One *: replace with index of current result
-        if (countAsterisks() == 1) {
-            result = new FixPath(replaceInPath(ASTERISK, i));
-        }
-        // Multiple * or wildcards: use the old value's path
-        else if (value.getPath() != null && countAsterisks() >= 2 || hasWildcard()) {
-            result = new FixPath(value.getPath());
-        }
-        else {
-            result = this;
-        }
-        return result;
-    }
-
-    private String[] replaceInPath(final String find, final int i) {
-        return Arrays.asList(path).stream().map(s -> s.equals(find) ? String.valueOf(i + 1) : s).toArray(String[]::new);
-    }
-
-    private boolean hasWildcard() {
-        return Arrays.asList(path).stream().filter(s -> s.equals("*") || s.contains("?") || s.contains("|") || s.matches(".*?\\[.+?\\].*?")).findAny().isPresent();
-    }
-
-    private long countAsterisks() {
-        return Arrays.asList(path).stream().filter(s -> s.equals(ASTERISK)).count();
+    /* package-private */ boolean hasWildcard() {
+        return Arrays.asList(path).stream().filter(s -> s.equals(ASTERISK) || s.contains("?") || s.contains("|") || s.matches(".*?\\[.+?\\].*?")).findAny().isPresent();
     }
 
     /* package-private */ enum InsertMode {
