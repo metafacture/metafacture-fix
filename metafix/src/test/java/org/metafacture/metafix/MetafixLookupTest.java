@@ -193,7 +193,7 @@ public class MetafixLookupTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
+    // See https://github.com/metafacture/metafacture-fix/pull/170
     public void shouldLookupCopiedDeduplicatedExternalArrayWithAsterisk() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "uniq('data')",
@@ -210,6 +210,29 @@ public class MetafixLookupTest {
             o -> {
                 o.get().startRecord("1");
                 o.get().literal("data", "Aloha");
+                o.get().literal("title", "Alohaeha");
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    // See https://github.com/metafacture/metafacture-fix/pull/170
+    public void shouldLookupMovedDeduplicatedExternalArrayWithAsterisk() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "uniq('data')",
+                "set_array('title')",
+                "move_field('data', 'title')",
+                LOOKUP + " Aloha: Alohaeha)"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.literal("data", "Aloha");
+                i.literal("data", "Aloha");
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
                 o.get().literal("title", "Alohaeha");
                 o.get().endRecord();
             }

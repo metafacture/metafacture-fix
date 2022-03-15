@@ -266,11 +266,14 @@ public class Value {
     // Update a path like author.label in a container value like author.1 to author.1.label:
     /*package-private*/ Value updatePath(final Value container, final String defaultPath) {
         if (container.getPath() != null) {
-            final String[] pathSegments = split(getPath() != null ? getPath() : defaultPath);
-            final String lastSegment = pathSegments[pathSegments.length - 1];
-            this.path = container.getPath() + "." + lastSegment;
+            this.path = container.getPath() + "." + lastSegment(getPath() != null ? getPath() : defaultPath);
         }
         return this;
+    }
+
+    private static String lastSegment(final String pathString) {
+        final String[] pathSegments = split(pathString);
+        return pathSegments[pathSegments.length - 1];
     }
 
     enum Type {
@@ -585,11 +588,20 @@ public class Value {
                 put(field, oldValue.asList(oldVals -> newValue.asList(newVals -> {
                     for (int i = 0; i < newVals.size(); ++i) {
                         final Value value = newVals.get(i);
-                        value.path = (value.getPath() != null ? value.getPath() : field) + "." + (i + 1 + oldVals.size());
+                        appendToPath(value, "." + (i + 1 + oldVals.size()), field);
                         value.matchType().ifHash(h -> h.forEach((k, v) -> v.updatePath(oldValue, field)));
                         oldVals.add(value);
                     }
                 })));
+            }
+        }
+
+        private void appendToPath(final Value value, final String suffix, final String fallback) {
+            if (value.getPath() != null && !isNumber(lastSegment(value.getPath()))) {
+                value.path = value.getPath() + suffix;
+            }
+            else {
+                value.path = fallback + suffix;
             }
         }
 
