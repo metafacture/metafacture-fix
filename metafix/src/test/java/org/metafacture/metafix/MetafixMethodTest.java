@@ -1350,6 +1350,58 @@ public class MetafixMethodTest {
     }
 
     @Test
+    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
+    public void shouldReplaceAllRegexesInCopiedArraySubField() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('coll[]')",
+                "copy_field('a', 'coll[].$append.a')",
+                "replace_all('coll[].*.a', 'o', '__')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.literal("a", "Dog");
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().literal("a", "Dog");
+                o.get().startEntity("coll[]");
+                o.get().startEntity("1");
+                o.get().literal("a", "D__g");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
+    public void shouldReplaceAllRegexesInListCopiedArraySubField() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('coll[]')",
+                "do list(path: 'a', 'var': '$i')",
+                "  copy_field('$i', 'coll[].$append.a')",
+                "end",
+                "replace_all('coll[].*.a', 'o', '__')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.literal("a", "Dog");
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().literal("a", "Dog");
+                o.get().startEntity("coll[]");
+                o.get().startEntity("1");
+                o.get().literal("a", "D__g");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
     // See https://github.com/metafacture/metafacture-fix/issues/121
     public void shouldReplaceAllRegexesInNestedArray() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
