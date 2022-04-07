@@ -33,7 +33,6 @@ import java.util.Arrays;
  * @author Fabian Steeg
  */
 @ExtendWith(MockitoExtension.class)
-@ExtendWith(MetafixToDo.Extension.class)
 public class MetafixLookupTest {
 
     private static final String CSV_MAP = "src/test/resources/org/metafacture/metafix/maps/test.csv";
@@ -326,7 +325,7 @@ public class MetafixLookupTest {
     public void shouldNotLookupInRelativeExternalFileMapFromInlineScript() {
         final String mapFile = "../maps/test.csv";
 
-        MetafixTestHelpers.assertThrowsCause(IllegalArgumentException.class, "Cannot resolve relative path: " + mapFile, () ->
+        MetafixTestHelpers.assertProcessException(IllegalArgumentException.class, "Cannot resolve relative path: " + mapFile, () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     LOOKUP + " '" + mapFile + "')"
                 ),
@@ -428,7 +427,6 @@ public class MetafixLookupTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
     public void shouldDeleteLookupInExternalFileMapWithWrongOptions() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 LOOKUP + " '" + CSV_MAP + "', sep_char: '\t', delete: 'true')"
@@ -532,6 +530,49 @@ public class MetafixLookupTest {
                 o.get().literal("title", "Alohaeha");
                 o.get().literal("title", "Moin zäme");
                 o.get().literal("title", "Yo");
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void shouldLookupAfterKeepingUnsuccessfulLookup() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "lookup('title.*', Aloha: Alohaeha, 'Moin': 'Moin zäme')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.literal("title", "Aloha");
+                i.literal("title", "Yo");
+                i.literal("title", "Moin");
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
+                o.get().literal("title", "Alohaeha");
+                o.get().literal("title", "Yo");
+                o.get().literal("title", "Moin zäme");
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void shouldLookupAfterDeletingUnsuccessfulLookup() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "lookup('title.*', Aloha: Alohaeha, 'Moin': 'Moin zäme', delete: 'true')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.literal("title", "Aloha");
+                i.literal("title", "Yo");
+                i.literal("title", "Moin");
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
+                o.get().literal("title", "Alohaeha");
+                o.get().literal("title", "Moin zäme");
                 o.get().endRecord();
             }
         );
@@ -657,7 +698,6 @@ public class MetafixLookupTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
     public void shouldDeleteLookupInUnknownInternalMap() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 LOOKUP + " 'testMap', delete: 'true')"
@@ -678,7 +718,7 @@ public class MetafixLookupTest {
 
     @Test
     public void shouldFailLookupInUnknownExternalMap() {
-        MetafixTestHelpers.assertThrowsCause(MorphExecutionException.class, "File not found: testMap.csv", () ->
+        MetafixTestHelpers.assertProcessException(MorphExecutionException.class, "File not found: testMap.csv", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     LOOKUP + " 'testMap.csv')"
                 ),

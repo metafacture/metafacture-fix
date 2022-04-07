@@ -49,7 +49,7 @@ public class Value {
 
     private final Type type;
 
-    private final String path;
+    private String path;
 
     public Value(final Array array) {
         type = array != null ? Type.Array : null;
@@ -203,6 +203,32 @@ public class Value {
         }
     }
 
+    /*package-private*/ Value updatePathRename(final String newName) {
+        if (path != null) {
+            path = newName.replaceAll("\\$[^.]+", split(path)[0]);
+        }
+        return this;
+    }
+
+    /*package-private*/ Value updatePathAddBase(final Value container, final String fallback) {
+        if (container.path != null) {
+            final String[] pathSegments = split(path != null ? path : fallback);
+            final String lastSegment = pathSegments[pathSegments.length - 1];
+            this.path = container.path + "." + lastSegment;
+        }
+        return this;
+    }
+
+    /*package-private*/ Value updatePathAppend(final String suffix, final String fallback) {
+        if (path != null) {
+            path = path + suffix;
+        }
+        else {
+            path = fallback + suffix;
+        }
+        return this;
+    }
+
     public TypeMatcher matchType() {
         return new TypeMatcher(this);
     }
@@ -254,6 +280,10 @@ public class Value {
 
     public String getPath() {
         return path;
+    }
+
+    /*package-private*/ void setPath(final String path) {
+        this.path = path;
     }
 
     enum Type {
@@ -557,7 +587,19 @@ public class Value {
          */
         public void add(final String field, final Value newValue) {
             final Value oldValue = new FixPath(field).findIn(this);
-            put(field, oldValue == null ? newValue : oldValue.asList(oldVals -> newValue.asList(newVals -> newVals.forEach(oldVals::add))));
+            if (oldValue == null) {
+                put(field, newValue);
+            }
+            else {
+                if (!oldValue.isArray()) { // repeated field: convert single val to first in array
+                    oldValue.updatePathAppend(".1", field);
+                }
+                put(field, oldValue.asList(oldVals -> newValue.asList(newVals -> {
+                    for (int i = 0; i < newVals.size(); ++i) {
+                        oldVals.add(newVals.get(i).updatePathAppend("." + (i + 1 + oldVals.size()), field));
+                    }
+                })));
+            }
         }
 
         /**

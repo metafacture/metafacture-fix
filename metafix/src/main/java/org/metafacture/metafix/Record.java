@@ -20,7 +20,9 @@ import org.metafacture.metafix.FixPath.InsertMode;
 import org.metafacture.metafix.Value.TypeMatcher;
 
 import java.util.Collection;
+import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -201,21 +203,21 @@ public class Record extends Value.Hash {
         final Value found = findPath.findIn(this);
         findPath.throwIfNonString(found);
         Value.asList(found, results -> {
+            final Deque<FixPath> toDelete = new LinkedList<>();
             for (int i = 0; i < results.size(); ++i) {
                 final Value oldValue = results.get(i);
                 final FixPath insertPath = findPath.to(oldValue, i);
-                oldValue.matchType()
-                        .ifString(s -> {
-                            final String newValue = operator.apply(s);
-                            if (newValue == null) {
-                                insertPath.removeNestedFrom(this);
-                            }
-                            else {
-                                insertPath.insertInto(this, InsertMode.REPLACE, new Value(newValue));
-                            }
-                        })
-                    .orElseThrow();
+                final String newString = operator.apply(oldValue.asString());
+                if (newString == null) {
+                    toDelete.addFirst(insertPath);
+                }
+                else {
+                    final Value newValue = new Value(newString);
+                    insertPath.insertInto(this, InsertMode.REPLACE, newValue);
+                    newValue.setPath(insertPath.toString());
+                }
             }
+            toDelete.forEach(path -> path.removeNestedFrom(this));
         });
     }
 

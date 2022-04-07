@@ -32,7 +32,7 @@ import java.util.Arrays;
  *
  * @author Fabian Steeg
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension.class) // checkstyle-disable-line JavaNCSS
 @ExtendWith(MetafixToDo.Extension.class)
 public class MetafixMethodTest {
 
@@ -159,8 +159,8 @@ public class MetafixMethodTest {
     }
 
     @Test
-    public void shouldNotCapitalizeRepeatedField() {
-        MetafixTestHelpers.assertThrowsCause(IllegalStateException.class, "Expected String, got Array", () ->
+    public void shouldNotCapitalizeArray() {
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "capitalize('title')"
                 ),
@@ -287,7 +287,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotTrimRepeatedField() {
-        MetafixTestHelpers.assertThrowsCause(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "trim('data.title')"
                 ),
@@ -308,7 +308,7 @@ public class MetafixMethodTest {
     @Test
     // See https://github.com/metafacture/metafacture-fix/pull/133
     public void shouldNotTrimStringInImplicitArrayOfHashes() {
-        MetafixTestHelpers.assertThrowsCause(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "trim('data.title')"
                 ),
@@ -460,7 +460,7 @@ public class MetafixMethodTest {
 
     @Test
     public void parseTextEscapedGroups() {
-        MetafixTestHelpers.assertThrowsCause(IllegalArgumentException.class, "No group with name <c>", () ->
+        MetafixTestHelpers.assertProcessException(IllegalArgumentException.class, "No group with name <c>", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "parse_text(data, '(?<a>.)(.)\\\\(?<c>.\\\\)')"
                 ),
@@ -477,7 +477,7 @@ public class MetafixMethodTest {
 
     @Test
     public void parseTextQuotedGroups() {
-        MetafixTestHelpers.assertThrowsCause(IllegalArgumentException.class, "No group with name <c>", () ->
+        MetafixTestHelpers.assertProcessException(IllegalArgumentException.class, "No group with name <c>", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "parse_text(data, '(?<a>.)(.)\\\\Q(?<c>.)\\\\E')"
                 ),
@@ -696,7 +696,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotAppendValueToArray() {
-        MetafixTestHelpers.assertThrowsCause(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "append('animals[]', 'another one')"
                 ),
@@ -718,7 +718,7 @@ public class MetafixMethodTest {
     @Test
     // See https://github.com/metafacture/metafacture-fix/issues/100
     public void shouldNotAppendValueToHash() {
-        MetafixTestHelpers.assertThrowsCause(IllegalStateException.class, "Expected String, got Hash", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Hash", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "append('animals', ' is cool')"
                 ),
@@ -1151,9 +1151,31 @@ public class MetafixMethodTest {
     @Test
     // See https://github.com/metafacture/metafacture-fix/issues/100
     public void shouldNotPrependValueToArray() {
-        MetafixTestHelpers.assertThrowsCause(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "prepend('animals[]', 'the first one')"
+                ),
+                i -> {
+                    i.startRecord("1");
+                    i.startEntity("animals[]");
+                    i.literal("1", "dog");
+                    i.literal("2", "cat");
+                    i.literal("3", "zebra");
+                    i.endEntity();
+                    i.endRecord();
+                },
+                o -> {
+                }
+            )
+        );
+    }
+
+    @Test
+    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
+    public void shouldNotPrependValueToArrayWithWildcard() {
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+            MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                    "prepend('animal?[]', 'the first one')"
                 ),
                 i -> {
                     i.startRecord("1");
@@ -1342,6 +1364,184 @@ public class MetafixMethodTest {
                 o.get().endEntity();
                 o.get().startEntity("2");
                 o.get().literal("b", "Ape");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void shouldNotInsertOptionalRepeatedHashSubFieldWithAsteriskInReplaceAll() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "replace_all('coll.*.b', 'x', 'y')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.startEntity("coll");
+                i.literal("a", "Dog");
+                i.endEntity();
+                i.startEntity("coll");
+                i.literal("b", "Ape");
+                i.endEntity();
+                i.endRecord();
+            },
+            o -> {
+                o.get().startRecord("1");
+                o.get().startEntity("coll");
+                o.get().literal("a", "Dog");
+                o.get().endEntity();
+                o.get().startEntity("coll");
+                o.get().literal("b", "Ape");
+                o.get().endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void replaceAllInOptionalSubfieldInArrayOfObjectsWithAsterisk() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "replace_all('RSWK[].*.subjectGenre', '[.]$', '')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.startEntity("RSWK[]");
+                i.startEntity("1");
+                i.literal("subjectTopicName", "Nonprofit organizations");
+                i.endEntity();
+                i.startEntity("2");
+                i.literal("subjectTopicName", "Nonprofit organizations");
+                i.literal("subjectGenre", "Case studies.");
+                i.endEntity();
+                i.endEntity();
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().startEntity("RSWK[]");
+                o.get().startEntity("1");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().endEntity();
+                o.get().startEntity("2");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().literal("subjectGenre", "Case studies");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void inDoBindCopyFieldWithVarInSourceAndTarget() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('RSWK[]')",
+                "do list(path: '650??', 'var': '$i')",
+                "  copy_field('$i.a', 'RSWK[].$append.subjectTopicName')",
+                "  copy_field('$i.v', 'RSWK[].$last.subjectGenre')",
+                "end",
+                "retain('RSWK[]')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.startEntity("650  ");
+                i.literal("a", "Nonprofit organizations");
+                i.literal("x", "Management.");
+                i.endEntity();
+                i.startEntity("650  ");
+                i.literal("a", "Nonprofit organizations");
+                i.literal("x", "Management");
+                i.literal("v", "Case studies.");
+                i.endEntity();
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().startEntity("RSWK[]");
+                o.get().startEntity("1");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().endEntity();
+                o.get().startEntity("2");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().literal("subjectGenre", "Case studies.");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void replaceAllWithWildcardAfterCopyFieldWithVarInSourceAndTarget() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('RSWK[]')",
+                "do list(path: '650??', 'var': '$i')",
+                "  copy_field('$i.a', 'RSWK[].$append.subjectTopicName')",
+                "  copy_field('$i.v', 'RSWK[].$last.subjectGenre')",
+                "end",
+                "replace_all('RSWK[].*.subjectGenre', '[.]$', '')",
+                "retain('RSWK[]')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.startEntity("650  ");
+                i.literal("a", "Nonprofit organizations");
+                i.literal("x", "Management.");
+                i.endEntity();
+                i.startEntity("650  ");
+                i.literal("a", "Nonprofit organizations");
+                i.literal("x", "Management");
+                i.literal("v", "Case studies.");
+                i.endEntity();
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().startEntity("RSWK[]");
+                o.get().startEntity("1");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().endEntity();
+                o.get().startEntity("2");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().literal("subjectGenre", "Case studies");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
+    public void multipleReplaceAllWithWildcardAfterCopyFieldWithVarInSourceAndTarget() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('RSWK[]')",
+                "do list(path: '650??', 'var': '$i')",
+                "  copy_field('$i.a', 'RSWK[].$append.subjectTopicName')",
+                "  copy_field('$i.v', 'RSWK[].$last.subjectGenre')",
+                "end",
+                "replace_all('RSWK[].*.subjectGenre', '[.]$', '')",
+                "replace_all('RSWK[].*.subjectGenre', '[.]$', '')",
+                "retain('RSWK[]')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.startEntity("650  ");
+                i.literal("a", "Nonprofit organizations");
+                i.literal("x", "Management.");
+                i.endEntity();
+                i.startEntity("650  ");
+                i.literal("a", "Nonprofit organizations");
+                i.literal("x", "Management");
+                i.literal("v", "Case studies.");
+                i.endEntity();
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().startEntity("RSWK[]");
+                o.get().startEntity("1");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().endEntity();
+                o.get().startEntity("2");
+                o.get().literal("subjectTopicName", "Nonprofit organizations");
+                o.get().literal("subjectGenre", "Case studies");
                 f.apply(2).endEntity();
                 o.get().endRecord();
             }
@@ -1857,7 +2057,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldFailToSortNumericallyWithInvalidNumber() {
-        MetafixTestHelpers.assertThrowsCause(NumberFormatException.class, "For input string: \"x\"", () ->
+        MetafixTestHelpers.assertExecutionException(NumberFormatException.class, "For input string: \"x\"", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "sort_field(numbers, numeric: 'true')"
                 ),
