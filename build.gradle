@@ -14,6 +14,7 @@ editorconfig {
     '**/.*',
     '**/bin',
     '**/generated',
+    '**/jmh/resources/**/input',
     '**/node_modules',
     '**/out',
     '**/output-*',
