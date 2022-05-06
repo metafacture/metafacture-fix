@@ -45,16 +45,20 @@ import java.util.Map;
     }
 
     /*package-private*/ Value findIn(final Hash hash) {
+        return findIn(hash, false);
+    }
+
+    /*package-private*/ Value findIn(final Hash hash, final boolean enforceStringValue) {
         final String currentSegment = path[0];
         final FixPath remainingPath = new FixPath(tail(path));
-        if (currentSegment.equals(ASTERISK)) {
-            // TODO: search in all elements of value.asHash()?
-            return remainingPath.findIn(hash);
+        if (currentSegment.equals(ASTERISK) && remainingPath.size() > 0) {
+            // TODO: search in all elements of hash?
+            return remainingPath.findIn(hash, enforceStringValue);
         }
-        final Value value = hash.get(currentSegment);
+        final Value value = hash.get(currentSegment, enforceStringValue && path.length == 1);
         return value == null || path.length == 1 ? value : value.extractType((m, c) -> m
                 .ifArray(a -> c.accept(remainingPath.findIn(a)))
-                .ifHash(h -> c.accept(remainingPath.findIn(h)))
+                .ifHash(h -> c.accept(remainingPath.findIn(h, enforceStringValue)))
                 .orElseThrow()
         );
     }
@@ -62,7 +66,10 @@ import java.util.Map;
     /*package-private*/ Value findIn(final Array array) {
 
         final Value result;
-        if (path.length > 0) {
+        if (path.length == 0) {
+            result = new Value(array);
+        }
+        else {
             final String currentSegment = path[0];
             if (currentSegment.equals(ASTERISK)) {
                 result = Value.newArray(resultArray -> array.forEach(v -> {
@@ -75,10 +82,10 @@ import java.util.Map;
                     }
                 }));
             }
-            else if (Value.isNumber(currentSegment)) {
-                final int index = Integer.parseInt(currentSegment) - 1; // TODO: 0-based Catmandu vs. 1-based Metafacture
-                if (index >= 0 && index < array.size()) {
-                    result = findInValue(array.get(index), tail(path));
+            else if (isReference(currentSegment)) {
+                final Value referencedValue = getReferencedValue(array, currentSegment);
+                if (referencedValue != null) {
+                    result = findInValue(referencedValue, tail(path));
                 }
                 else {
                     result = null;
@@ -89,16 +96,13 @@ import java.util.Map;
                 result = Value.newArray(a -> array.forEach(v -> a.add(findInValue(v, path))));
             }
         }
-        else {
-            result = new Value(array);
-        }
         return result;
 
     }
 
     private Value findInValue(final Value value, final String[] p) {
         // TODO: move impl into enum elements, here call only value.find
-        return value == null ? null : value.extractType((m, c) -> m
+        return p.length == 0 ? value : value == null ? null : value.extractType((m, c) -> m
                 .ifArray(a -> c.accept(new FixPath(p).findIn(a)))
                 .ifHash(h -> c.accept(new FixPath(p).findIn(h)))
                 .orElse(c)
@@ -117,17 +121,6 @@ import java.util.Map;
     // TODO: this is still very much work in progress, I think we should
     // try to replace this with consistent usage of Value#getPath
     // (e.g. take care of handling repeated fields and their paths)
-
-    /*package-private*/ void throwIfNonString(final Value value) {
-        final boolean isNonString = value != null &&
-            // basic idea: path is only set on literals/strings
-            value.getPath() == null &&
-            // but with wildcards, we might still point to literals/strings
-            !hasWildcard();
-        if (isNonString) {
-            value.asString();
-        }
-    }
 
     /*package-private*/ FixPath to(final Value value, final int i) {
         final FixPath result;
@@ -154,7 +147,7 @@ import java.util.Map;
     }
 
     private boolean hasWildcard() {
-        return Arrays.asList(path).stream().filter(s -> s.equals("*") || s.contains("?") || s.contains("|") || s.matches(".*?\\[.+?\\].*?")).findAny().isPresent();
+        return Arrays.asList(path).stream().filter(s -> s.contains("*") || s.contains("?") || s.contains("|") || s.matches(".*?\\[.+?\\].*?")).findAny().isPresent();
     }
 
     private long countAsterisks() {
@@ -171,7 +164,30 @@ import java.util.Map;
 
             @Override
             void apply(final Array array, final String field, final Value value) {
-                array.set(Integer.valueOf(field) - 1, value);
+                try {
+                    final ReservedField reservedField = ReservedField.fromString(field);
+                    if (reservedField != null) {
+                        switch (reservedField) {
+                            case $append:
+                                array.add(value);
+                                break;
+                            case $first:
+                                array.set(0, value);
+                                break;
+                            case $last:
+                                array.set(array.size() - 1, value);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    else {
+                        array.set(Integer.valueOf(field) - 1, value);
+                    }
+                }
+                catch (final NumberFormatException e) {
+                    throw new IllegalStateException("Expected Hash, got Array", e);
+                }
             }
         },
         APPEND {
@@ -234,27 +250,15 @@ import java.util.Map;
         // basic idea: reuse findIn logic here? setIn(findIn(array), newValue)
         final String field = path[0];
         if (path.length == 1) {
-            if (field.equals(ASTERISK)) {
-                for (int i = 0; i < array.size(); ++i) {
-                    mode.apply(array, "" + (i + 1), newValue);
-                }
-            }
-            else {
-                // TODO unify ref usage from below
-                if ("$append".equals(field)) {
-                    array.add(newValue);
-                }
-                else {
-                    mode.apply(array, field, newValue);
-                }
-            }
+            mode.apply(array, field, newValue);
         }
         else {
-            final String[] tail = tail(path);
-            if (isReference(field)) {
-                return processRef(getReferencedValue(array, field), mode, newValue, field, tail);
+            if (ASTERISK.equals(field)) {
+                array.forEach(value -> insertInto(value, mode, newValue, field, tail(path)));
             }
-            array.add(Value.newHash(h -> new FixPath(path).insertInto(h, mode, newValue)));
+            else if (isReference(field)) {
+                insertInto(getReferencedValue(array, field), mode, newValue, field, tail(path));
+            }
         }
         return new Value(array);
     }
@@ -263,54 +267,38 @@ import java.util.Map;
         // basic idea: reuse findIn logic here? setIn(findIn(hash), newValue)
         final String field = path[0];
         if (path.length == 1) {
-            if (field.equals(ASTERISK)) {
-                hash.forEach((k, v) -> mode.apply(hash, k, newValue)); //TODO: WDCD? insert into each element?
-            }
-            else {
-                mode.apply(hash, field, newValue);
-            }
+            mode.apply(hash, field, newValue);
         }
         else {
-            final String[] tail = tail(path);
-            if (isReference(field)) {
-                return processRef(hash.get(field), mode, newValue, field, tail);
-            }
             if (!hash.containsField(field)) {
                 hash.put(field, Value.newHash());
             }
-            final Value value = hash.get(field);
-            if (value != null) {
-                // TODO: move impl into enum elements, here call only value.insert
-                value.matchType()
-                    .ifArray(a -> new FixPath(tail).insertInto(a, mode, newValue))
-                    .ifHash(h -> new FixPath(tail).insertInto(h, mode, newValue))
-                    .orElseThrow();
-            }
+            insertInto(hash.get(field), mode, newValue, field, tail(path));
         }
 
         return new Value(hash);
+    }
+
+    private Value insertInto(final Value value, final InsertMode mode, final Value newValue, final String field,
+            final String[] tail) {
+        if (value != null) {
+            final FixPath fixPath = new FixPath(tail);
+            newValue.updatePathAddBase(value, field);
+            return value.extractType((m, c) -> m
+                    .ifArray(a -> c.accept(fixPath.insertInto(a, mode, newValue)))
+                    .ifHash(h -> c.accept(fixPath.insertInto(h, mode, newValue)))
+                    .orElseThrow());
+        }
+        else {
+            throw new IllegalArgumentException("Using ref, but can't find: " + field + " in: " + value);
+        }
     }
 
     private String[] tail(final String[] fields) {
         return Arrays.copyOfRange(fields, 1, fields.length);
     }
 
-    private Value processRef(final Value referencedValue, final InsertMode mode, final Value newValue, final String field,
-            final String[] tail) {
-        if (referencedValue != null) {
-            final FixPath fixPath = new FixPath(tail);
-            newValue.updatePathAddBase(referencedValue, field);
-            return referencedValue.extractType((m, c) -> m
-                    .ifArray(a -> c.accept(fixPath.insertInto(referencedValue.asArray(), mode, newValue)))
-                    .ifHash(h -> c.accept(fixPath.insertInto(referencedValue.asHash(), mode, newValue)))
-                    .orElseThrow());
-        }
-        else {
-            throw new IllegalArgumentException("Using ref, but can't find: " + field + " in: " + referencedValue);
-        }
-    }
-
-    private enum ReservedField {
+    /*package-private*/ enum ReservedField {
         $append, $first, $last;
 
         private static final Map<String, ReservedField> STRING_TO_ENUM = new HashMap<>();
@@ -332,24 +320,27 @@ import java.util.Map;
     // TODO replace switch, extract to method on array?
     private Value getReferencedValue(final Array array, final String field) {
         Value referencedValue = null;
-        final ReservedField reservedField = ReservedField.fromString(field);
-        if (reservedField == null && Value.isNumber(field)) {
-            return array.get(Integer.valueOf(field) - 1);
+        if (Value.isNumber(field)) {
+            final int index = Integer.valueOf(field) - 1;
+            return 0 <= index && index < array.size() ? array.get(index) : null;
         }
-        switch (reservedField) {
-            case $first:
-                referencedValue = array.get(0);
-                break;
-            case $last:
-                referencedValue = array.get(array.size() - 1);
-                break;
-            case $append:
-                referencedValue = Value.newHash(); // TODO: append non-hash?
-                array.add(referencedValue);
-                referencedValue.updatePathAppend(String.valueOf(array.size()), "");
-                break;
-            default:
-                break;
+        final ReservedField reservedField = ReservedField.fromString(field);
+        if (reservedField != null) {
+            switch (reservedField) {
+                case $first:
+                    referencedValue = getReferencedValue(array, "1");
+                    break;
+                case $last:
+                    referencedValue = getReferencedValue(array, String.valueOf(array.size()));
+                    break;
+                case $append:
+                    referencedValue = Value.newHash(); // TODO: append non-hash?
+                    array.add(referencedValue);
+                    referencedValue.updatePathAppend(String.valueOf(array.size()), "");
+                    break;
+                default:
+                    break;
+            }
         }
         return referencedValue;
     }

@@ -306,9 +306,53 @@ public class MetafixMethodTest {
     }
 
     @Test
+    public void shouldNotTrimIndexedArray() {
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+            MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                    "trim('data.title[]')"
+                ),
+                i -> {
+                    i.startRecord("1");
+                    i.startEntity("data");
+                    i.startEntity("title[]");
+                    i.literal("1", "  marc  ");
+                    i.literal("2", "  json  ");
+                    i.endEntity();
+                    i.endEntity();
+                    i.endRecord();
+                },
+                o -> {
+                }
+            )
+        );
+    }
+
+    @Test
+    public void shouldNotTrimHash() {
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Hash", () ->
+            MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                    "trim('data.title')"
+                ),
+                i -> {
+                    i.startRecord("1");
+                    i.startEntity("data");
+                    i.startEntity("title");
+                    i.literal("1", "  marc  ");
+                    i.literal("2", "  json  ");
+                    i.endEntity();
+                    i.endEntity();
+                    i.endRecord();
+                },
+                o -> {
+                }
+            )
+        );
+    }
+
+    @Test
     // See https://github.com/metafacture/metafacture-fix/pull/133
     public void shouldNotTrimStringInImplicitArrayOfHashes() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected Hash, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "trim('data.title')"
                 ),
@@ -522,7 +566,7 @@ public class MetafixMethodTest {
     }
 
     @Test
-    public void wildcard() {
+    public void wildcardSingleChar() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "trim('title-?')"),
             i -> {
@@ -543,6 +587,165 @@ public class MetafixMethodTest {
                 o.get().startRecord("2");
                 o.get().literal("title-1", "marc");
                 o.get().literal("title-2", "json");
+                o.get().endRecord();
+
+                o.get().startRecord("3");
+                o.get().endRecord();
+            });
+    }
+
+    @Test
+    public void wildcardMultiChar() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "trim('title*')"),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+
+                i.startRecord("2");
+                i.literal("title-1", "  marc  ");
+                i.literal("title-2", "  json  ");
+                i.endRecord();
+
+                i.startRecord("3");
+                i.endRecord();
+            }, o -> {
+                o.get().startRecord("1");
+                o.get().endRecord();
+
+                o.get().startRecord("2");
+                o.get().literal("title-1", "marc");
+                o.get().literal("title-2", "json");
+                o.get().endRecord();
+
+                o.get().startRecord("3");
+                o.get().endRecord();
+            });
+    }
+
+    @Test
+    public void wildcardNestedPartialSingle() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "trim('work.title-?')"),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+
+                i.startRecord("2");
+                i.startEntity("work");
+                i.literal("title-1", "  marc  ");
+                i.literal("title-2", "  json  ");
+                i.endEntity();
+                i.endRecord();
+
+                i.startRecord("3");
+                i.endRecord();
+            }, o -> {
+                o.get().startRecord("1");
+                o.get().endRecord();
+
+                o.get().startRecord("2");
+                o.get().startEntity("work");
+                o.get().literal("title-1", "marc");
+                o.get().literal("title-2", "json");
+                o.get().endEntity();
+                o.get().endRecord();
+
+                o.get().startRecord("3");
+                o.get().endRecord();
+            });
+    }
+
+    @Test
+    public void wildcardNestedPartialMulti() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "trim('work.title*')"),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+
+                i.startRecord("2");
+                i.startEntity("work");
+                i.literal("title-1", "  marc  ");
+                i.literal("title-2", "  json  ");
+                i.endEntity();
+                i.endRecord();
+
+                i.startRecord("3");
+                i.endRecord();
+            }, o -> {
+                o.get().startRecord("1");
+                o.get().endRecord();
+
+                o.get().startRecord("2");
+                o.get().startEntity("work");
+                o.get().literal("title-1", "marc");
+                o.get().literal("title-2", "json");
+                o.get().endEntity();
+                o.get().endRecord();
+
+                o.get().startRecord("3");
+                o.get().endRecord();
+            });
+    }
+
+    @Test
+    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/issues/121")
+    public void wildcardFullFieldNonIndex() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "trim('*')"),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+
+                i.startRecord("2");
+                i.literal("title-1", "  marc  ");
+                i.literal("title-2", "  json  ");
+                i.endRecord();
+
+                i.startRecord("3");
+                i.endRecord();
+            }, o -> {
+                o.get().startRecord("1");
+                o.get().endRecord();
+
+                o.get().startRecord("2");
+                o.get().literal("title-1", "marc");
+                o.get().literal("title-2", "json");
+                o.get().endRecord();
+
+                o.get().startRecord("3");
+                o.get().endRecord();
+            });
+    }
+
+    @Test
+    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/issues/121")
+    public void wildcardNestedFullFieldNonIndex() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "trim('work.*')"),
+            i -> {
+                i.startRecord("1");
+                i.endRecord();
+
+                i.startRecord("2");
+                i.startEntity("work");
+                i.literal("title-1", "  marc  ");
+                i.literal("title-2", "  json  ");
+                i.endEntity();
+                i.endRecord();
+
+                i.startRecord("3");
+                i.endRecord();
+            }, o -> {
+                o.get().startRecord("1");
+                o.get().endRecord();
+
+                o.get().startRecord("2");
+                o.get().startEntity("work");
+                o.get().literal("title-1", "marc");
+                o.get().literal("title-2", "json");
+                o.get().endEntity();
                 o.get().endRecord();
 
                 o.get().startRecord("3");
@@ -1171,7 +1374,6 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
     public void shouldNotPrependValueToArrayWithWildcard() {
         MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
@@ -1183,6 +1385,29 @@ public class MetafixMethodTest {
                     i.literal("1", "dog");
                     i.literal("2", "cat");
                     i.literal("3", "zebra");
+                    i.endEntity();
+                    i.endRecord();
+                },
+                o -> {
+                }
+            )
+        );
+    }
+
+    @Test
+    public void shouldNotPrependValueToArrayWithWildcardNested() {
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+            MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                    "prepend('some.animal?[]', 'the first one')"
+                ),
+                i -> {
+                    i.startRecord("1");
+                    i.startEntity("some");
+                    i.startEntity("animals[]");
+                    i.literal("1", "dog");
+                    i.literal("2", "cat");
+                    i.literal("3", "zebra");
+                    i.endEntity();
                     i.endEntity();
                     i.endRecord();
                 },
@@ -1549,7 +1774,7 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/170")
+    @MetafixToDo("Do we actually want implicit append? WDCD? See (passing) copyFieldToSubfieldOfArrayOfStringsWithIndexImplicitAppend")
     public void copyFieldToSubfieldOfArrayOfObjectsWithIndexImplicitAppend() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "set_array('test[]')",
@@ -1573,6 +1798,7 @@ public class MetafixMethodTest {
     }
 
     @Test
+    // Do we actually want implicit append? WDCD? See (failing) copyFieldToSubfieldOfArrayOfObjectsWithIndexImplicitAppend
     public void copyFieldToSubfieldOfArrayOfStringsWithIndexImplicitAppend() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "set_array('test[]')",
@@ -1618,10 +1844,34 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/205")
-    public void addFieldIntoArrayOfObjectsWithLastWildcardImplicitSkip() {
+    // We currently fail on unresolved references, see MetafixRecordTests#assertThrowsOnEmptyArray
+    public void addFieldIntoArrayOfObjectsWithLastWildcardMissingError() {
+        MetafixTestHelpers.assertProcessException(IllegalArgumentException.class, "Using ref, but can't find: $last in: null", () -> {
+            MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                    "add_field('animals[].$last.key', 'value')"
+                ),
+                i -> {
+                    i.startRecord("1");
+                    i.startEntity("animals[]");
+                    i.endEntity();
+                    i.endRecord();
+                },
+                (o, f) -> {
+                    o.get().startRecord("1");
+                    o.get().startEntity("animals[]");
+                    o.get().endEntity();
+                    o.get().endRecord();
+                }
+            );
+        });
+    }
+
+    @Test
+    public void addFieldIntoArrayOfObjectsWithLastWildcardAllEmpty() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
-                "add_field('animals[].$last.key', 'value')"
+                "if exists('animals[].$last')",
+                "  add_field('animals[].$last.key', 'value')",
+                "end"
             ),
             i -> {
                 i.startRecord("1");
@@ -1639,8 +1889,7 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/pull/205")
-    public void addFieldIntoArrayOfObjectsWithLastWildcardExplicitSkip() {
+    public void addFieldIntoArrayOfObjectsWithLastWildcardLastEmpty() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "if exists('animals[].$last')",
                 "  add_field('animals[].$last.key', 'value')",
@@ -1649,11 +1898,35 @@ public class MetafixMethodTest {
             i -> {
                 i.startRecord("1");
                 i.startEntity("animals[]");
+                i.startEntity("1");
+                i.literal("name", "Jake");
+                i.literal("type", "dog");
+                i.endEntity();
+                i.startEntity("2");
+                i.literal("name", "Blacky");
+                i.literal("type", "bird");
+                i.endEntity();
+                i.endEntity();
+                i.endRecord();
+                i.startRecord("2");
+                i.startEntity("animals[]");
                 i.endEntity();
                 i.endRecord();
             },
             (o, f) -> {
                 o.get().startRecord("1");
+                o.get().startEntity("animals[]");
+                o.get().startEntity("1");
+                o.get().literal("name", "Jake");
+                o.get().literal("type", "dog");
+                o.get().endEntity();
+                o.get().startEntity("2");
+                o.get().literal("name", "Blacky");
+                o.get().literal("type", "bird");
+                o.get().literal("key", "value");
+                f.apply(2).endEntity();
+                o.get().endRecord();
+                o.get().startRecord("2");
                 o.get().startEntity("animals[]");
                 o.get().endEntity();
                 o.get().endRecord();
@@ -1759,6 +2032,33 @@ public class MetafixMethodTest {
     }
 
     @Test
+    public void shouldCopyBindVarWithDollarAfterLookup() {
+        MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
+                "set_array('@coll[]')",
+                "do list(path: 'a', 'var': '$i')",
+                "  lookup('$i.name')",
+                "  copy_field('$i.name', '@coll[].$append')",
+                "end",
+                "remove_field('a')"
+            ),
+            i -> {
+                i.startRecord("1");
+                i.startEntity("a");
+                i.literal("name", "Dog");
+                i.endEntity();
+                i.endRecord();
+            },
+            (o, f) -> {
+                o.get().startRecord("1");
+                o.get().startEntity("@coll[]");
+                o.get().literal("1", "Dog");
+                f.apply(1).endEntity();
+                o.get().endRecord();
+            }
+        );
+    }
+
+    @Test
     // See https://github.com/metafacture/metafacture-fix/issues/121
     public void shouldReplaceAllRegexesInNestedArray() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
@@ -1825,7 +2125,6 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/issues/135")
     public void shouldReplaceAllRegexesInArrayByArrayWildcard() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "replace_all('names.$last', 'a', 'X')"
@@ -1877,7 +2176,6 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/issues/135")
     public void shouldReplaceAllRegexesInArraySubFieldByArrayWildcard() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "replace_all('names[].$last.name', 'a', 'X')"
@@ -2145,7 +2443,6 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/issues/121")
     public void shouldSortArrayFieldWithAsterisk() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "sort_field('OTHERS[].*.dnimals[]')"
@@ -2334,7 +2631,6 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("See https://github.com/metafacture/metafacture-fix/issues/100 and https://github.com/metafacture/metafacture-fix/issues/121")
     public void shouldSplitNestedField() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "split_field('others[].*.tools', '--')"
@@ -2383,7 +2679,6 @@ public class MetafixMethodTest {
     }
 
     @Test
-    @MetafixToDo("java.lang.IllegalStateException: Expected String, got Array; see https://github.com/metafacture/metafacture-fix/issues/121")
     public void shouldSumArrayFieldWithAsterisk() {
         MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                 "sum('OTHERS[].*.dumbers[]')"

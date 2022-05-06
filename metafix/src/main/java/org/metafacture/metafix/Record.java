@@ -150,14 +150,12 @@ public class Record extends Value.Hash {
             super.add(field, newValue);
         }
         else {
-            final FixPath fixPath = new FixPath(field);
-            if (fixPath.size() > 1) {
-                fixPath.insertInto(this, InsertMode.APPEND, newValue);
-            }
-            else {
-                put(field, newValue);
-            }
+            put(field, newValue);
         }
+    }
+
+    public void addNested(final String field, final Value newValue) {
+        new FixPath(field).insertInto(this, InsertMode.APPEND, newValue);
     }
 
     /**
@@ -200,8 +198,7 @@ public class Record extends Value.Hash {
      */
     public void transform(final String field, final UnaryOperator<String> operator) {
         final FixPath findPath = new FixPath(field);
-        final Value found = findPath.findIn(this);
-        findPath.throwIfNonString(found);
+        final Value found = findPath.findIn(this, true);
         Value.asList(found, results -> {
             final Deque<FixPath> toDelete = new LinkedList<>();
             for (int i = 0; i < results.size(); ++i) {

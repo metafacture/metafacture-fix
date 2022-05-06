@@ -16,16 +16,12 @@
 
 package org.metafacture.metafix;
 
-import org.metafacture.commons.tries.SimpleRegexTrie;
-
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 
-@ExtendWith(MetafixToDo.Extension.class)
 public class HashValueTest {
 
     private static final String FIELD = "field";
@@ -46,8 +42,6 @@ public class HashValueTest {
     public void shouldSatisfyEqualsContract() {
         EqualsVerifier.forClass(Value.Hash.class)
             .withPrefabValues(Value.class, Value.newArray(), Value.newHash())
-            .withPrefabValues(SimpleRegexTrie.class, new SimpleRegexTrie<String>(), new SimpleRegexTrie<String>())
-            .withIgnoredFields("trie")
             .verify();
     }
 
@@ -398,7 +392,6 @@ public class HashValueTest {
     }
 
     @Test
-    @MetafixToDo("Expected String, got Array")
     public void shouldFindArrayWildcard() {
         shouldFindArray("$last");
     }
@@ -416,7 +409,6 @@ public class HashValueTest {
     }
 
     @Test
-    @MetafixToDo("Expected String, got Array")
     public void shouldFindArrayWildcardSubfield() {
         shouldFindArraySubfield("$last");
     }

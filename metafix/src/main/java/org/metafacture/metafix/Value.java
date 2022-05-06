@@ -17,10 +17,12 @@
 package org.metafacture.metafix;
 
 import org.metafacture.commons.tries.SimpleRegexTrie;
+import org.metafacture.metafix.FixPath.ReservedField;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,6 +34,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -205,7 +209,10 @@ public class Value {
 
     /*package-private*/ Value updatePathRename(final String newName) {
         if (path != null) {
-            path = newName.replaceAll("\\$[^.]+", split(path)[0]);
+            final String basePath = split(path)[0];
+            for (final ReservedField rf : ReservedField.values()) {
+                path = newName.replace(rf.name(), basePath);
+            }
         }
         return this;
     }
@@ -459,9 +466,13 @@ public class Value {
      */
     public static class Hash extends AbstractValueType {
 
-        private final Map<String, Value> map = new LinkedHashMap<>();
+        // NOTE: Keep in sync with `WildcardTrie`/`SimpleRegexTrie` implementation in metafacture-core.
+        private static final Matcher PATTERN_MATCHER = Pattern.compile("[*?|]|\\[[^\\]]").matcher("");
 
-        private final SimpleRegexTrie<String> trie = new SimpleRegexTrie<>();
+        private static final Map<String, Map<String, Boolean>> TRIE_CACHE = new HashMap<>();
+        private static final SimpleRegexTrie<String> TRIE = new SimpleRegexTrie<>();
+
+        private final Map<String, Value> map = new LinkedHashMap<>();
 
         /**
          * Creates an empty instance of {@link Hash}.
@@ -555,8 +566,18 @@ public class Value {
          * @return the metadata value
          */
         public Value get(final String field) {
+            return get(field, false);
+        }
+
+        /*package-private*/ Value get(final String field, final boolean enforceStringValue) { // TODO use Type.String etc.?
             // TODO: special treatment (only) for exact matches?
-            final List<Value> list = findFields(field).map(this::getField).collect(Collectors.toList());
+            final List<Value> list = findFields(field).map(actualField -> {
+                final Value value = getField(actualField);
+                if (enforceStringValue) {
+                    value.asString();
+                }
+                return value;
+            }).collect(Collectors.toList());
             return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : newArray(a -> list.forEach(v -> v.matchType()
                         .ifArray(b -> b.forEach(a::add))
                         .orElse(a::add)));
@@ -685,8 +706,17 @@ public class Value {
         }
 
         private <T> T matchFields(final String pattern, final BiFunction<Stream<String>, Predicate<String>, T> function) {
-            trie.put(pattern, pattern);
-            return function.apply(map.keySet().stream(), f -> trie.get(f).contains(pattern));
+            if (PATTERN_MATCHER.reset(pattern).find()) {
+                final Map<String, Boolean> matcher = TRIE_CACHE.computeIfAbsent(pattern, k -> {
+                    TRIE.put(k, k);
+                    return new HashMap<>();
+                });
+
+                return function.apply(map.keySet().stream(), f -> matcher.computeIfAbsent(f, k -> TRIE.get(k).contains(pattern)));
+            }
+            else {
+                return function.apply(Stream.of(pattern), map::containsKey);
+            }
         }
 
     }
