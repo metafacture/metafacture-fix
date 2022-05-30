@@ -51,12 +51,12 @@ public class Value {
     private final Hash hash;
     private final String string;
 
-    private final Type type;
+    private final int type;
 
     private String path;
 
     public Value(final Array array) {
-        type = array != null ? Type.Array : null;
+        type = array != null ? 2 : 1;
 
         this.array = array;
         this.hash = null;
@@ -73,7 +73,7 @@ public class Value {
     }
 
     public Value(final Hash hash) {
-        type = hash != null ? Type.Hash : null;
+        type = hash != null ? 3 : 1;
 
         this.array = null;
         this.hash = hash;
@@ -98,7 +98,7 @@ public class Value {
     }
 
     public Value(final String string, final String path) {
-        type = string != null ? Type.String : null;
+        type = string != null ? 5 : 1;
 
         this.array = null;
         this.hash = null;
@@ -135,23 +135,23 @@ public class Value {
     }
 
     public boolean isArray() {
-        return isType(Type.Array);
+        return isType(2);
     }
 
     public boolean isHash() {
-        return isType(Type.Hash);
+        return isType(3);
     }
 
     public boolean isString() {
-        return isType(Type.String);
+        return isType(5);
     }
 
-    private boolean isType(final Type targetType) {
+    private boolean isType(final int targetType) {
         return type == targetType;
     }
 
     public boolean isNull() {
-        return type == null || this.<Boolean>extractType((m, c) -> m
+        return type == 1 || this.<Boolean>extractType((m, c) -> m
                 .ifArray(a -> c.accept(a == null))
                 .ifHash(h -> c.accept(h == null))
                 .ifString(s -> c.accept(s == null))
@@ -232,6 +232,7 @@ public class Value {
     }
 
     public TypeMatcher matchType() {
+      //  System.out.println();
         return new TypeMatcher(this);
     }
 
@@ -296,15 +297,16 @@ public class Value {
                 .orElseThrow());
     }
 
-    enum Type {
-        Array,
-        Hash,
-        String
-    }
+//    enum Type {
+//        Array,
+//        Hash,
+//        String
+//    }
 
     public static class TypeMatcher {
 
-        private final Set<Type> expected = new HashSet<>();
+      //  private final Set<Type> expected = new HashSet<>(6,1f);
+        private  int expected=1;
         private final Value value;
 
         private TypeMatcher(final Value value) {
@@ -312,32 +314,36 @@ public class Value {
         }
 
         public TypeMatcher ifArray(final Consumer<Array> consumer) {
-            return match(Type.Array, consumer, value.array);
+            return match(2, consumer, value.array);
         }
 
         public TypeMatcher ifHash(final Consumer<Hash> consumer) {
-            return match(Type.Hash, consumer, value.hash);
+            return match(3, consumer, value.hash);
         }
 
         public TypeMatcher ifString(final Consumer<String> consumer) {
-            return match(Type.String, consumer, value.string);
+            return match(5, consumer, value.string);
         }
 
+        //111a1a11a
         public void orElse(final Consumer<Value> consumer) {
-            if (!expected.contains(value.type)) {
+         //   System.out.print("a");
+            if (expected % value.type != 0) {
                 consumer.accept(value);
             }
         }
 
         public void orElseThrow() {
             orElse(v -> {
-                final String types = expected.stream().map(Type::name).collect(Collectors.joining(" or "));
-                throw new IllegalStateException("Expected " + types + ", got " + value.type);
+               // final String types = expected.stream().map(Type::name).collect(Collectors.joining(" or "));
+                throw new IllegalStateException("Expected " + expected + ", got " + value.type);
             });
         }
 
-        private <T> TypeMatcher match(final Type type, final Consumer<T> consumer, final T rawValue) {
-            if (expected.add(type)) {
+        private <T> TypeMatcher match(int type, final Consumer<T> consumer, final T rawValue) {
+           // System.out.print("1");
+            if (expected % type != 0) {
+                expected = expected * type;
                 if (value.isType(type)) {
                     consumer.accept(rawValue);
                 }

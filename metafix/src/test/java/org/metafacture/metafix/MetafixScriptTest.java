@@ -471,7 +471,7 @@ public class MetafixScriptTest {
 
     @Test
     public void shouldAbortProcessOnExecutionException() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
                 assertStrictness(Metafix.Strictness.PROCESS, false, o -> {
                 })
         );

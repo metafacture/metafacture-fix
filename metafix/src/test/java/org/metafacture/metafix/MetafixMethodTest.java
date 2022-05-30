@@ -189,7 +189,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotCapitalizeArray() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "capitalize('title')"
                 ),
@@ -316,7 +316,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotTrimRepeatedField() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "trim('data.title')"
                 ),
@@ -336,7 +336,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotTrimIndexedArray() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "trim('data.title[]')"
                 ),
@@ -358,7 +358,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotTrimHash() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Hash", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 3", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "trim('data.title')"
                 ),
@@ -928,7 +928,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotAppendValueToArray() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "append('animals[]', 'another one')"
                 ),
@@ -950,7 +950,7 @@ public class MetafixMethodTest {
     @Test
     // See https://github.com/metafacture/metafacture-fix/issues/100
     public void shouldNotAppendValueToHash() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Hash", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 3", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "append('animals', ' is cool')"
                 ),
@@ -1383,7 +1383,7 @@ public class MetafixMethodTest {
     @Test
     // See https://github.com/metafacture/metafacture-fix/issues/100
     public void shouldNotPrependValueToArray() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "prepend('animals[]', 'the first one')"
                 ),
@@ -1404,7 +1404,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotPrependValueToArrayWithWildcard() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "prepend('animal?[]', 'the first one')"
                 ),
@@ -1425,7 +1425,7 @@ public class MetafixMethodTest {
 
     @Test
     public void shouldNotPrependValueToArrayWithWildcardNested() {
-        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected String, got Array", () ->
+        MetafixTestHelpers.assertExecutionException(IllegalStateException.class, "Expected 5, got 2", () ->
             MetafixTestHelpers.assertFix(streamReceiver, Arrays.asList(
                     "prepend('some.animal?[]', 'the first one')"
                 ),
