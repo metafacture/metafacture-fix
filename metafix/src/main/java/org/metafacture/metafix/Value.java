@@ -232,7 +232,6 @@ public class Value {
     }
 
     public TypeMatcher matchType() {
-      //  System.out.println();
         return new TypeMatcher(this);
     }
 
@@ -304,8 +303,6 @@ public class Value {
 //    }
 
     public static class TypeMatcher {
-
-      //  private final Set<Type> expected = new HashSet<>(6,1f);
         private  int expected=1;
         private final Value value;
 
@@ -325,23 +322,19 @@ public class Value {
             return match(5, consumer, value.string);
         }
 
-        //111a1a11a
         public void orElse(final Consumer<Value> consumer) {
-         //   System.out.print("a");
             if (expected % value.type != 0) {
                 consumer.accept(value);
             }
         }
 
         public void orElseThrow() {
-            orElse(v -> {
-               // final String types = expected.stream().map(Type::name).collect(Collectors.joining(" or "));
+            orElse(v -> {// final String types = expected.stream().map(Type::name).collect(Collectors.joining(" or "));
                 throw new IllegalStateException("Expected " + expected + ", got " + value.type);
             });
         }
 
         private <T> TypeMatcher match(int type, final Consumer<T> consumer, final T rawValue) {
-           // System.out.print("1");
             if (expected % type != 0) {
                 expected = expected * type;
                 if (value.isType(type)) {
