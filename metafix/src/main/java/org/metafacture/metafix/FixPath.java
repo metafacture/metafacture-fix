@@ -44,11 +44,11 @@ import java.util.Map;
         this.path = path;
     }
 
-    /*package-private*/ Value findIn(final Hash hash) {
+    /*package-private*/ synchronized Value findIn(final Hash hash) {
         return findIn(hash, false);
     }
 
-    /*package-private*/ Value findIn(final Hash hash, final boolean enforceStringValue) {
+    /*package-private*/ synchronized Value findIn(final Hash hash, final boolean enforceStringValue) {
         final String currentSegment = path[0];
         final FixPath remainingPath = new FixPath(tail(path));
         if (currentSegment.equals(ASTERISK) && remainingPath.size() > 0) {
@@ -63,7 +63,7 @@ import java.util.Map;
         );
     }
 
-    /*package-private*/ Value findIn(final Array array) {
+    /*package-private*/ synchronized Value findIn(final Array array) {
         final Value result;
 
         if (path.length == 0) {
@@ -100,7 +100,7 @@ import java.util.Map;
         return result;
     }
 
-    private Value findInValue(final Value value, final String[] p) {
+    private synchronized Value findInValue(final Value value, final String[] p) {
         // TODO: move impl into enum elements, here call only value.find
         return p.length == 0 ? value : value == null ? null : value.extractType((m, c) -> m
                 .ifArray(a -> c.accept(new FixPath(p).findIn(a)))
@@ -110,11 +110,11 @@ import java.util.Map;
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
         return String.join(".", path);
     }
 
-    /*package-private*/ int size() {
+    /*package-private*/ synchronized int size() {
         return path.length;
     }
 
@@ -122,7 +122,7 @@ import java.util.Map;
     // try to replace this with consistent usage of Value#getPath
     // (e.g. take care of handling repeated fields and their paths)
 
-    /*package-private*/ FixPath to(final Value value, final int i) {
+    /*package-private*/ synchronized FixPath to(final Value value, final int i) {
         final FixPath result;
 
         // One *, no matching path: replace with index of current result
@@ -140,19 +140,19 @@ import java.util.Map;
         return result;
     }
 
-    private boolean matches(final String thatPath) {
+    private synchronized boolean matches(final String thatPath) {
         return thatPath != null && thatPath.replaceAll("\\.\\d+\\.", ".*.").equals(String.join(".", this.path));
     }
 
-    private String[] replaceInPath(final String find, final int i) {
+    private synchronized String[] replaceInPath(final String find, final int i) {
         return Arrays.asList(path).stream().map(s -> s.equals(find) ? String.valueOf(i + 1) : s).toArray(String[]::new);
     }
 
-    private boolean hasWildcard() {
+    private synchronized boolean hasWildcard() {
         return Arrays.asList(path).stream().filter(s -> s.contains("*") || s.contains("?") || s.contains("|") || s.matches(".*?\\[.+?\\].*?")).findAny().isPresent();
     }
 
-    private long countAsterisks() {
+    private synchronized long countAsterisks() {
         return Arrays.asList(path).stream().filter(s -> s.equals(ASTERISK)).count();
     }
 
@@ -160,12 +160,12 @@ import java.util.Map;
 
         REPLACE {
             @Override
-            void apply(final Hash hash, final String field, final Value value) {
+            synchronized void apply(final Hash hash, final String field, final Value value) {
                 hash.put(field, value);
             }
 
             @Override
-            void apply(final Array array, final String field, final Value value) {
+            synchronized void apply(final Array array, final String field, final Value value) {
                 try {
                     final ReservedField reservedField = ReservedField.fromString(field);
                     if (reservedField != null) {
@@ -194,12 +194,12 @@ import java.util.Map;
         },
         APPEND {
             @Override
-            void apply(final Hash hash, final String field, final Value value) {
+            synchronized void apply(final Hash hash, final String field, final Value value) {
                 hash.add(field, value);
             }
 
             @Override
-            void apply(final Array array, final String field, final Value value) {
+            synchronized void apply(final Array array, final String field, final Value value) {
                 array.add(value);
             }
         };
@@ -210,7 +210,7 @@ import java.util.Map;
 
     }
 
-    /*package-private*/ void removeNestedFrom(final Array array) {
+    /*package-private*/ synchronized void removeNestedFrom(final Array array) {
         if (path.length >= 1 && path[0].equals(ASTERISK)) {
             array.removeAll();
         }
@@ -227,7 +227,7 @@ import java.util.Map;
         }
     }
 
-    /*package-private*/ void removeNestedFrom(final Hash hash) {
+    /*package-private*/ synchronized void removeNestedFrom(final Hash hash) {
         final String field = path[0];
 
         if (path.length == 1) {
@@ -238,7 +238,7 @@ import java.util.Map;
         }
     }
 
-    private void removeNestedFrom(final Value value) {
+    private synchronized void removeNestedFrom(final Value value) {
         // TODO: impl and call just value.remove
         if (value != null) {
             value.matchType()
@@ -248,7 +248,7 @@ import java.util.Map;
         }
     }
 
-    private Value insertInto(final Array array, final InsertMode mode, final Value newValue) {
+    private synchronized Value insertInto(final Array array, final InsertMode mode, final Value newValue) {
         // basic idea: reuse findIn logic here? setIn(findIn(array), newValue)
         final String field = path[0];
 
@@ -267,7 +267,7 @@ import java.util.Map;
         return new Value(array);
     }
 
-    /*package-private*/ Value insertInto(final Hash hash, final InsertMode mode, final Value newValue) {
+    /*package-private*/ synchronized Value insertInto(final Hash hash, final InsertMode mode, final Value newValue) {
         // basic idea: reuse findIn logic here? setIn(findIn(hash), newValue)
         final String field = path[0];
 
@@ -284,7 +284,7 @@ import java.util.Map;
         return new Value(hash);
     }
 
-    private Value insertInto(final Value value, final InsertMode mode, final Value newValue, final String field, final String[] tail) {
+    private synchronized Value insertInto(final Value value, final InsertMode mode, final Value newValue, final String field, final String[] tail) {
         if (value != null) {
             final FixPath fixPath = new FixPath(tail);
             newValue.withPathSet(value.getPath());
@@ -298,7 +298,7 @@ import java.util.Map;
         }
     }
 
-    private String[] tail(final String[] fields) {
+    private synchronized String[] tail(final String[] fields) {
         return Arrays.copyOfRange(fields, 1, fields.length);
     }
 
@@ -306,6 +306,7 @@ import java.util.Map;
         $append, $first, $last;
 
         private static final Map<String, ReservedField> STRING_TO_ENUM = new HashMap<>();
+
         static {
             for (final ReservedField f : values()) {
                 STRING_TO_ENUM.put(f.toString(), f);
@@ -317,12 +318,12 @@ import java.util.Map;
         }
     }
 
-    private boolean isReference(final String field) {
+    private synchronized boolean isReference(final String field) {
         return ReservedField.fromString(field) != null || Value.isNumber(field);
     }
 
     // TODO replace switch, extract to method on array?
-    private Value getReferencedValue(final Array array, final String field, final String p) {
+    private synchronized Value getReferencedValue(final Array array, final String field, final String p) {
         Value referencedValue = null;
 
         if (Value.isNumber(field)) {

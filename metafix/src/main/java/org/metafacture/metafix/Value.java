@@ -112,11 +112,11 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         this(String.valueOf(integer));
     }
 
-    public static Value newArray() {
+    public static synchronized Value newArray() {
         return newArray(null);
     }
 
-    public static Value newArray(final Consumer<Array> consumer) {
+    public static synchronized Value newArray(final Consumer<Array> consumer) {
         final Array array = new Array();
 
         if (consumer != null) {
@@ -126,11 +126,11 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         return new Value(array);
     }
 
-    public static Value newHash() {
+    public static synchronized Value newHash() {
         return newHash(null);
     }
 
-    public static Value newHash(final Consumer<Hash> consumer) {
+    public static synchronized Value newHash(final Consumer<Hash> consumer) {
         final Hash hash = new Hash();
 
         if (consumer != null) {
@@ -140,27 +140,27 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         return new Value(hash);
     }
 
-    public boolean isArray() {
+    public synchronized boolean isArray() {
         return isType(Type.Array);
     }
 
-    public boolean isHash() {
+    public synchronized boolean isHash() {
         return isType(Type.Hash);
     }
 
-    public boolean isString() {
+    public synchronized boolean isString() {
         return isType(Type.String);
     }
 
-    private boolean isType(final Type targetType) {
+    private synchronized boolean isType(final Type targetType) {
         return type == targetType;
     }
 
-    public boolean isNull() {
+    public synchronized boolean isNull() {
         return isType(null);
     }
 
-    public static boolean isNull(final Value value) {
+    public static synchronized boolean isNull(final Value value) {
         return value == null || value.isNull();
     }
 
@@ -168,23 +168,23 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         return s.matches("\\d+");
     }
 
-    public Array asArray() {
+    public synchronized Array asArray() {
         return extractType((m, c) -> m.ifArray(c).orElseThrow());
     }
 
-    public Hash asHash() {
+    public synchronized Hash asHash() {
         return extractType((m, c) -> m.ifHash(c).orElseThrow());
     }
 
-    public String asString() {
+    public synchronized String asString() {
         return extractType((m, c) -> m.ifString(c).orElseThrow());
     }
 
-    public static Value asList(final Value value, final Consumer<Array> consumer) {
+    public static synchronized Value asList(final Value value, final Consumer<Array> consumer) {
         return isNull(value) ? null : value.asList(consumer);
     }
 
-    public Value asList(final Consumer<Array> consumer) {
+    public synchronized Value asList(final Consumer<Array> consumer) {
         if (isArray()) {
             if (consumer != null) {
                 consumer.accept(asArray());
@@ -203,18 +203,18 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         }
     }
 
-    public TypeMatcher matchType() {
+    public synchronized TypeMatcher matchType() {
         return new TypeMatcher(this);
     }
 
-    public <T> T extractType(final BiConsumer<TypeMatcher, Consumer<T>> consumer) {
+    public synchronized <T> T extractType(final BiConsumer<TypeMatcher, Consumer<T>> consumer) {
         final AtomicReference<T> result = new AtomicReference<>();
         consumer.accept(matchType(), result::set);
         return result.get();
     }
 
     @Override
-    public final boolean equals(final Object object) {
+    public final synchronized boolean equals(final Object object) {
         if (object == this) {
             return true;
         }
@@ -231,7 +231,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
     }
 
     @Override
-    public final int hashCode() {
+    public final synchronized int hashCode() {
         return Objects.hashCode(type) +
             Objects.hashCode(array) +
             Objects.hashCode(hash) +
@@ -239,7 +239,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
         return isNull() ? null : extractType((m, c) -> m
                 .ifArray(a -> c.accept(a.toString()))
                 .ifHash(h -> c.accept(h.toString()))
@@ -278,24 +278,24 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         return fieldPath.split(FIELD_PATH_SEPARATOR);
     }
 
-    public String getPath() {
+    public synchronized String getPath() {
         return path;
     }
 
-    /*package-private*/ Value withPathSet(final String p) {
+    /*package-private*/ synchronized Value withPathSet(final String p) {
         this.path = p;
         return this;
     }
 
-    private Value withPathAppend(final int i) {
+    private synchronized Value withPathAppend(final int i) {
         return withPathAppend(String.valueOf(i));
     }
 
-    private Value withPathAppend(final String field) {
+    private synchronized Value withPathAppend(final String field) {
         return withPathSet(path == null || path.isEmpty() ? field : path + "." + field);
     }
 
-    /*package-private*/ Value copy() {
+    /*package-private*/ synchronized Value copy() {
         return extractType((m, c) -> m
                 .ifArray(oldArray -> c.accept(Value.newArray(newArray -> oldArray.forEach(v -> newArray.add(v)))))
                 .ifHash(oldHash -> c.accept(Value.newHash(newHash -> oldHash.forEach((k, v) -> newHash.put(k, v)))))
@@ -318,32 +318,32 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
             this.value = value;
         }
 
-        public TypeMatcher ifArray(final Consumer<Array> consumer) {
+        public synchronized TypeMatcher ifArray(final Consumer<Array> consumer) {
             return match(Type.Array, consumer, value.array);
         }
 
-        public TypeMatcher ifHash(final Consumer<Hash> consumer) {
+        public synchronized TypeMatcher ifHash(final Consumer<Hash> consumer) {
             return match(Type.Hash, consumer, value.hash);
         }
 
-        public TypeMatcher ifString(final Consumer<String> consumer) {
+        public synchronized TypeMatcher ifString(final Consumer<String> consumer) {
             return match(Type.String, consumer, value.string);
         }
 
-        public void orElse(final Consumer<Value> consumer) {
+        public synchronized void orElse(final Consumer<Value> consumer) {
             if (!expected.contains(value.type)) {
                 consumer.accept(value);
             }
         }
 
-        public void orElseThrow() {
+        public synchronized void orElseThrow() {
             orElse(v -> {
                 final String types = expected.stream().map(Type::name).collect(Collectors.joining(" or "));
                 throw new IllegalStateException("Expected " + types + ", got " + value.type);
             });
         }
 
-        private <T> TypeMatcher match(final Type type, final Consumer<T> consumer, final T rawValue) {
+        private synchronized <T> TypeMatcher match(final Type type, final Consumer<T> consumer, final T rawValue) {
             if (expected.add(type)) {
                 if (value.isType(type)) {
                     consumer.accept(rawValue);
@@ -402,42 +402,42 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         private Array() {
         }
 
-        public void add(final Value value) {
+        public synchronized void add(final Value value) {
             add(value, true);
         }
 
-        /* package-private */ void add(final Value value, final boolean appendToPath) {
+        /* package-private */ synchronized void add(final Value value, final boolean appendToPath) {
             if (!isNull(value)) {
                 list.add(appendToPath ? value.withPathAppend(list.size() + 1) : value);
             }
         }
 
-        public boolean isEmpty() {
+        public synchronized boolean isEmpty() {
             return list.isEmpty();
         }
 
-        public int size() {
+        public synchronized int size() {
             return list.size();
         }
 
-        public Value get(final int index) {
+        public synchronized Value get(final int index) {
             return list.get(index);
         }
 
-        public Stream<Value> stream() {
+        public synchronized Stream<Value> stream() {
             return list.stream();
         }
 
-        private void removeEmptyValues() {
+        private synchronized void removeEmptyValues() {
             list.removeIf(REMOVE_EMPTY_VALUES);
         }
 
-        public void forEach(final Consumer<Value> consumer) {
+        public synchronized void forEach(final Consumer<Value> consumer) {
             list.forEach(consumer);
         }
 
         @Override
-        public final boolean equals(final Object object) {
+        public final synchronized boolean equals(final Object object) {
             if (object == this) {
                 return true;
             }
@@ -451,17 +451,17 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         }
 
         @Override
-        public final int hashCode() {
+        public final synchronized int hashCode() {
             return Objects.hashCode(list);
         }
 
         @Override
-        public String toString() {
+        public synchronized String toString() {
             return list.toString();
         }
 
         @Override
-        public void toJson(final JsonGenerator jsonGenerator) {
+        public synchronized void toJson(final JsonGenerator jsonGenerator) {
             try {
                 jsonGenerator.writeStartArray();
                 forEach(v -> v.toJson(jsonGenerator));
@@ -472,19 +472,19 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
             }
         }
 
-        public void remove(final int index) {
+        public synchronized void remove(final int index) {
             list.remove(index);
         }
 
-        /*package-private*/ void set(final int index, final Value value) {
+        /*package-private*/ synchronized void set(final int index, final Value value) {
             list.set(index, value.withPathAppend(index + 1));
         }
 
-        /*package-private*/ void removeIf(final Predicate<Value> predicate) {
+        /*package-private*/ synchronized void removeIf(final Predicate<Value> predicate) {
             list.removeIf(predicate);
         }
 
-        /*package-private*/ void removeAll() {
+        /*package-private*/ synchronized void removeAll() {
             list.clear();
         }
 
@@ -518,11 +518,11 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          * @param field the field name
          * @return true if this hash contains the metadata field, false otherwise
          */
-        public boolean containsField(final String field) {
+        public synchronized boolean containsField(final String field) {
             return !findFields(field).isEmpty();
         }
 
-        public boolean containsPath(final String fieldPath) {
+        public synchronized boolean containsPath(final String fieldPath) {
             final String[] path = split(fieldPath);
             final String field = path[0];
 
@@ -553,7 +553,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          *
          * @return true if this hash is empty, false otherwise
          */
-        public boolean isEmpty() {
+        public synchronized boolean isEmpty() {
             return map.isEmpty();
         }
 
@@ -562,7 +562,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          *
          * @return the number of field/value pairs in this hash
          */
-        public int size() {
+        public synchronized int size() {
             return map.size();
         }
 
@@ -572,7 +572,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          * @param field the field name
          * @param value the metadata value
          */
-        public void put(final String field, final Value value) {
+        public synchronized void put(final String field, final Value value) {
             put(field, value, true);
         }
 
@@ -589,7 +589,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          * @param field the field name
          * @param value the metadata value
          */
-        public void replace(final String field, final Value value) {
+        public synchronized void replace(final String field, final Value value) {
             if (containsField(field)) {
                 put(field, value);
             }
@@ -601,11 +601,11 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          * @param field the field name
          * @return the metadata value
          */
-        public Value get(final String field) {
+        public synchronized Value get(final String field) {
             return get(field, false);
         }
 
-        /*package-private*/ Value get(final String field, final boolean enforceStringValue) { // TODO use Type.String etc.?
+        /*package-private*/ synchronized Value get(final String field, final boolean enforceStringValue) { // TODO use Type.String etc.?
             // TODO: special treatment (only) for exact matches?
             final Set<String> set = findFields(field);
 
@@ -616,11 +616,11 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
                 ));
         }
 
-        public Value getField(final String field) {
+        public synchronized Value getField(final String field) {
             return map.get(field);
         }
 
-        private Value getField(final String field, final boolean enforceStringValue) {
+        private synchronized Value getField(final String field, final boolean enforceStringValue) {
             final Value value = getField(field);
 
             if (enforceStringValue) {
@@ -630,15 +630,15 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
             return value;
         }
 
-        public Value getList(final String field, final Consumer<Array> consumer) {
+        public synchronized Value getList(final String field, final Consumer<Array> consumer) {
             return asList(get(field), consumer);
         }
 
-        public void addAll(final String field, final List<String> values) {
+        public synchronized void addAll(final String field, final List<String> values) {
             values.forEach(value -> add(field, new Value(value)));
         }
 
-        public void addAll(final Hash hash) {
+        public synchronized void addAll(final Hash hash) {
             hash.forEach(this::add);
         }
 
@@ -649,7 +649,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          * @param field the field name
          * @param newValue the new metadata value
          */
-        public void add(final String field, final Value newValue) {
+        public synchronized void add(final String field, final Value newValue) {
             final Value oldValue = new FixPath(field).findIn(this);
 
             if (oldValue == null) {
@@ -671,7 +671,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          *
          * @param field the field name
          */
-        public void remove(final String field) {
+        public synchronized void remove(final String field) {
             final FixPath fixPath = new FixPath(field);
 
             if (fixPath.size() > 1) {
@@ -682,7 +682,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
             }
         }
 
-        public void removeField(final String field) {
+        public synchronized void removeField(final String field) {
             map.remove(field);
         }
 
@@ -691,7 +691,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          *
          * @param fields the field names
          */
-        public void retainFields(final Collection<String> fields) {
+        public synchronized void retainFields(final Collection<String> fields) {
             final Set<String> retainFields = new HashSet<>();
             fields.forEach(f -> retainFields.addAll(findFields(f)));
 
@@ -701,7 +701,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         /**
          * Recursively removes all field/value pairs from this hash whose value is empty.
          */
-        public void removeEmptyValues() {
+        public synchronized void removeEmptyValues() {
             map.values().removeIf(REMOVE_EMPTY_VALUES);
         }
 
@@ -710,12 +710,12 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
          *
          * @param consumer the action to be performed for each field/value pair
          */
-        public void forEach(final BiConsumer<String, Value> consumer) {
+        public synchronized void forEach(final BiConsumer<String, Value> consumer) {
             map.forEach(consumer);
         }
 
         @Override
-        public final boolean equals(final Object object) {
+        public final synchronized boolean equals(final Object object) {
             if (object == this) {
                 return true;
             }
@@ -729,17 +729,17 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
         }
 
         @Override
-        public final int hashCode() {
+        public final synchronized int hashCode() {
             return Objects.hashCode(map);
         }
 
         @Override
-        public String toString() {
+        public synchronized String toString() {
             return map.toString();
         }
 
         @Override
-        public void toJson(final JsonGenerator jsonGenerator) {
+        public synchronized void toJson(final JsonGenerator jsonGenerator) {
             try {
                 jsonGenerator.writeStartObject();
 
@@ -771,7 +771,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
             findFields(pattern).forEach(consumer);
         }
 
-        private Set<String> findFields(final String pattern) {
+        private synchronized Set<String> findFields(final String pattern) {
             final Set<String> fieldSet = new LinkedHashSet<>();
 
             for (final String term : ALTERNATION_PATTERN.split(pattern)) {
@@ -781,7 +781,7 @@ public class Value implements JsonValue { // checkstyle-disable-line ClassDataAb
             return fieldSet;
         }
 
-        private void findFields(final String pattern, final Set<String> fieldSet) {
+        private synchronized void findFields(final String pattern, final Set<String> fieldSet) {
             if (!PREFIX_CACHE.containsKey(pattern)) {
                 final Matcher patternMatcher = PATTERN_MATCHER.reset(pattern);
 

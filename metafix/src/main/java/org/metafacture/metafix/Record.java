@@ -49,7 +49,7 @@ public class Record extends Value.Hash {
      *
      * @return a new record pre-populated with all entries from this record
      */
-    public Record shallowClone() {
+    public synchronized Record shallowClone() {
         final Record clone = new Record();
 
         clone.setReject(reject);
@@ -64,7 +64,7 @@ public class Record extends Value.Hash {
      *
      * @param reject true if this record should not be emitted, false otherwise
      */
-    public void setReject(final boolean reject) {
+    public synchronized void setReject(final boolean reject) {
         this.reject = reject;
     }
 
@@ -73,7 +73,7 @@ public class Record extends Value.Hash {
      *
      * @return true if this record should not be emitted, false otherwise
      */
-    public boolean getReject() {
+    public synchronized boolean getReject() {
         return reject;
     }
 
@@ -83,7 +83,7 @@ public class Record extends Value.Hash {
      * @param field the field name
      * @return true if this record contains the <i>virtual</i> field, false otherwise
      */
-    public boolean containsVirtualField(final String field) {
+    public synchronized boolean containsVirtualField(final String field) {
         return virtualFields.containsKey(field);
     }
 
@@ -98,7 +98,7 @@ public class Record extends Value.Hash {
      *
      * @see #retainFields(Collection)
      */
-    public void putVirtualField(final String field, final Value value) {
+    public synchronized void putVirtualField(final String field, final Value value) {
         if (!Value.isNull(value)) {
             virtualFields.put(field, value);
         }
@@ -119,7 +119,7 @@ public class Record extends Value.Hash {
      * @return the metadata value
      */
     @Override
-    public Value get(final String field) {
+    public synchronized Value get(final String field) {
         final Value result;
         if (containsField(field)) {
             result = super.get(field);
@@ -145,7 +145,7 @@ public class Record extends Value.Hash {
      * @param newValue the new metadata value
      */
     @Override
-    public void add(final String field, final Value newValue) {
+    public synchronized void add(final String field, final Value newValue) {
         if (containsField(field)) {
             super.add(field, newValue);
         }
@@ -154,7 +154,7 @@ public class Record extends Value.Hash {
         }
     }
 
-    public void addNested(final String field, final Value newValue) {
+    public synchronized void addNested(final String field, final Value newValue) {
         new FixPath(field).insertInto(this, InsertMode.APPEND, newValue);
     }
 
@@ -165,7 +165,7 @@ public class Record extends Value.Hash {
      * @param field the field name
      * @param newValue the new metadata value
      */
-    public void set(final String field, final Value newValue) {
+    public synchronized void set(final String field, final Value newValue) {
         final FixPath fixPath = new FixPath(field);
         fixPath.insertInto(this, InsertMode.REPLACE, newValue);
     }
@@ -178,7 +178,7 @@ public class Record extends Value.Hash {
      * @param fields the field names
      */
     @Override
-    public void retainFields(final Collection<String> fields) {
+    public synchronized void retainFields(final Collection<String> fields) {
         virtualFields.keySet().retainAll(fields);
 
         virtualFields.forEach((f, v) -> {
@@ -196,7 +196,7 @@ public class Record extends Value.Hash {
      * @param field The field
      * @param operator The operator
      */
-    public void transform(final String field, final UnaryOperator<String> operator) {
+    public synchronized void transform(final String field, final UnaryOperator<String> operator) {
         final FixPath findPath = new FixPath(field);
         final Value found = findPath.findIn(this, true);
         Value.asList(found, results -> {
@@ -222,7 +222,7 @@ public class Record extends Value.Hash {
      * @param field The field
      * @param consumer The consumer
      */
-    public void transform(final String field, final BiConsumer<TypeMatcher, Consumer<Value>> consumer) {
+    public synchronized void transform(final String field, final BiConsumer<TypeMatcher, Consumer<Value>> consumer) {
         final FixPath path = new FixPath(field);
         final Value oldValue = path.findIn(this);
 
