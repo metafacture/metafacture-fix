@@ -68,6 +68,10 @@ jmh {
   if (project.hasProperty('exclude')) {
     excludes = project.getProperty('exclude').split() as List
   }
+
+  def systemProperties = [:]
+  passSystemProperties(systemProperties)
+  jvmArgsAppend = systemProperties.collect { k, v -> "-D${k}=${v}" }
 }
 
 test {
