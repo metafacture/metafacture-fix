@@ -6,4 +6,4 @@ put_map("map",
   "dragon":"fictional animal",
   "unicorn":"fictional animal")
 
-lookup("type", "map")
+lookup("type", "map", print_unknown:"true", append: "false", destination:"/home/tobias/git/metafacture-fix/metafix/src/test/resources/org/metafacture/metafix/integration/lookup/fromJson/toJson/lookupSimpleWithInternalMap/compare.txt")
