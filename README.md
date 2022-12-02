@@ -687,7 +687,7 @@ trim("<sourceField>")
 
 ##### `uniq`
 
-Deletes duplicate values in an array.
+Deletes duplicate values or duplicate objects in an array.
 
 ```perl
 uniq("<sourceField>")
