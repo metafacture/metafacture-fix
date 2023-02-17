@@ -23,6 +23,8 @@ import org.metafacture.metamorph.functions.ISBN;
 import org.metafacture.metamorph.functions.Timestamp;
 import org.metafacture.metamorph.maps.FileMap;
 
+import com.google.common.net.PercentEscaper;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -655,8 +657,15 @@ public enum FixMethod implements FixFunction { // checkstyle-disable-line ClassD
         public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
             record.transform(params.get(0), s -> s.toUpperCase());
         }
+    },
+    uri_encode {
+        @Override
+        public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
+            record.transform(params.get(0), PERCENT_ESCAPER::escape);
+        }
     };
 
+    private static final PercentEscaper PERCENT_ESCAPER = new PercentEscaper("", false);
     private static final Pattern NAMED_GROUP_PATTERN = Pattern.compile("\\(\\?<(.+?)>");
 
     private static final String FILEMAP_SEPARATOR_OPTION = "sep_char";
