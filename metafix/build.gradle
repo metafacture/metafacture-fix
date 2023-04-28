@@ -1,6 +1,7 @@
 plugins {
   id 'maven-publish'
   id 'me.champeau.jmh' version '0.6.6'
+  id 'antlr'
 }
 
 def passSystemProperties = {
@@ -41,6 +42,7 @@ dependencies {
   testImplementation "nl.jqno.equalsverifier:equalsverifier:${versions.equalsverifier}"
   testImplementation "org.mockito:mockito-inline:${versions.mockito}"
   testImplementation "org.mockito:mockito-junit-jupiter:${versions.mockito}"
+  antlr "org.antlr:antlr:3.5.3"
 }
 
 configurations {
