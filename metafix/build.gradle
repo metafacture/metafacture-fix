@@ -31,6 +31,7 @@ dependencies {
   runtimeOnly "org.slf4j:slf4j-simple:${versions.slf4j}"
 
   implementation "org.metafacture:metafacture-commons:${versions.metafacture}"
+  implementation "org.metafacture:metafacture-csv:${versions.metafacture}"
   implementation "org.metafacture:metafacture-flowcontrol:${versions.metafacture}"
   implementation "org.metafacture:metafacture-formatting:${versions.metafacture}"
   implementation "org.metafacture:metafacture-framework:${versions.metafacture}"
