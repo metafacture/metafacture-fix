@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -148,24 +150,41 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps {
     }
 
     public String resolvePath(final String path) {
-        final Path basePath;
+        String resolvedPath = path;
 
-        if (path.startsWith(".")) {
-            if (fixFile != null) {
-                basePath = getPath(fixFile).getParent();
-            }
-            else {
-                throw new IllegalArgumentException("Cannot resolve relative path: " + path);
-            }
+        if (isValidUrl(path)) {
+            LOG.debug("Resolved path: url = '{}'", resolvedPath);
         }
         else {
-            basePath = getPath("");
+            final Path basePath;
+
+            if (path.startsWith(".")) {
+                if (fixFile != null) {
+                    basePath = getPath(fixFile).getParent();
+                }
+                else {
+                    throw new IllegalArgumentException("Cannot resolve relative path: " + path);
+                }
+            }
+            else {
+                basePath = getPath("");
+            }
+
+            resolvedPath = basePath.resolve(path).normalize().toString();
+            LOG.debug("Resolved path: base = '{}', path = '{}', result = '{}'", basePath, path, resolvedPath);
         }
 
-        final String resolvedPath = basePath.resolve(path).normalize().toString();
-        LOG.debug("Resolved path: base = '{}', path = '{}', result = '{}'", basePath, path, resolvedPath);
-
         return resolvedPath;
+    }
+
+    private boolean isValidUrl(final String url) {
+        try {
+            new URL(url);
+            return true;
+        }
+        catch (final MalformedURLException e) {
+            return false;
+        }
     }
 
     private Path getPath(final String path) {

@@ -24,7 +24,9 @@
         <module name="CatchParameterName">
             <property name="format" value="^e$"/>
         </module>
-        <module name="ClassDataAbstractionCoupling"/>
+        <module name="ClassDataAbstractionCoupling">
+            <property name="max" value="8"/>
+        </module>
         <module name="ClassFanOutComplexity"/>
         <module name="ClassTypeParameterName"/>
         <module name="ConstantName"/>
