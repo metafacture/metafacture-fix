@@ -71,21 +71,21 @@ public class MetafixLookupTest {
         WIRE_MOCK_SERVER.start();
 
         // stubs for RDF
-        UrlPattern urlPattern = WireMock.urlPathEqualTo(RDF_PATH);
+        final UrlPattern rdfUrlPattern = WireMock.urlPathEqualTo(RDF_PATH);
         final String redirectToUrl = "/redirect" + RDF_PATH;
         final UrlPattern urlPatternRedirectToUrl = WireMock.urlPathEqualTo(redirectToUrl);
-        WIRE_MOCK_SERVER.stubFor(WireMock.get(urlPattern)
+        WIRE_MOCK_SERVER.stubFor(WireMock.get(rdfUrlPattern)
             .willReturn(WireMock.temporaryRedirect(redirectToUrl)));
-        String responseBody = loadFile(RDF_PATH);
+        final String rdfResponseBody = loadFile(RDF_PATH);
         WIRE_MOCK_SERVER.stubFor(WireMock.get(urlPatternRedirectToUrl)
             .willReturn(WireMock.aResponse()
                 .withHeader("Content-Type", "text/turtle")
-                .withBody(responseBody)));
+                .withBody(rdfResponseBody)));
 
         // stub for CSV
-        urlPattern = WireMock.urlPathEqualTo(CSV_PATH);
-        responseBody = loadFile(CSV_PATH);
-        WIRE_MOCK_SERVER.stubFor(WireMock.get(urlPattern).willReturn(WireMock.aResponse().withBody(responseBody)));
+        final UrlPattern csvUrlPattern = WireMock.urlPathEqualTo(CSV_PATH);
+        final String csvResponseBody = loadFile(CSV_PATH);
+        WIRE_MOCK_SERVER.stubFor(WireMock.get(csvUrlPattern).willReturn(WireMock.aResponse().withBody(csvResponseBody)));
     }
 
     private static String loadFile(final String path) {
