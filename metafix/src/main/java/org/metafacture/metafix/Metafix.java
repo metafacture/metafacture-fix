@@ -150,9 +150,10 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps {
     }
 
     public String resolvePath(final String path) {
-        String resolvedPath = path;
+        final String resolvedPath;
 
         if (isValidUrl(path)) {
+            resolvedPath = path;
             LOG.debug("Resolved path: url = '{}'", resolvedPath);
         }
         else {
