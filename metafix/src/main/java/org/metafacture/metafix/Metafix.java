@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//TODO: move all classes here to fix package
+// TODO: move all classes here to fix package
 
 package org.metafacture.metafix;
 

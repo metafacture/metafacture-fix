@@ -25,12 +25,12 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
-//import org.openjdk.jmh.profile.GCProfiler;
-//import org.openjdk.jmh.profile.StackProfiler;
-//import org.openjdk.jmh.runner.Runner;
-//import org.openjdk.jmh.runner.RunnerException;
-//import org.openjdk.jmh.runner.options.Options;
-//import org.openjdk.jmh.runner.options.OptionsBuilder;
+// import org.openjdk.jmh.profile.GCProfiler;
+// import org.openjdk.jmh.profile.StackProfiler;
+// import org.openjdk.jmh.runner.Runner;
+// import org.openjdk.jmh.runner.RunnerException;
+// import org.openjdk.jmh.runner.options.Options;
+// import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.util.concurrent.TimeUnit;
 
@@ -57,7 +57,7 @@ public abstract class AbstractBenchmark {
         final Options opt = new OptionsBuilder()
             .include(MetafixBenchmark.class.getSimpleName())
             .addProfiler(StackProfiler.class)
-            //.addProfiler(GCProfiler.class)
+            // .addProfiler(GCProfiler.class)
             .build();
 
         new Runner(opt).run();

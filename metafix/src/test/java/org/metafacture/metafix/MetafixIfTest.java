@@ -1622,7 +1622,6 @@ public class MetafixIfTest {
                 o.get().endRecord();
                 o.get().startRecord("3");
                 o.get().literal("foo", "   ");
-                //o.get().literal("test", "ok");
                 o.get().endRecord();
                 o.get().startRecord("4");
                 o.get().literal("foo", "bar");

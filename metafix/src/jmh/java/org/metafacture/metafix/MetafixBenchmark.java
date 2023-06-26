@@ -31,7 +31,7 @@ import java.io.UncheckedIOException;
 public class MetafixBenchmark extends FixParseBenchmark { // checkstyle-disable-line ClassDataAbstractionCoupling
 
     // TODO: Need to inject system properties into JMHTask's JavaExec process.
-    //private static final boolean DEBUG_OUTPUT = Boolean.parseBoolean(System.getProperty("org.metafacture.metafix.debugBenchmarkOutput"));
+    // private static final boolean DEBUG_OUTPUT = Boolean.parseBoolean(System.getProperty("org.metafacture.metafix.debugBenchmarkOutput"));
     private static final boolean DEBUG_OUTPUT = false;
 
     private static final String INPUT = BASE + "/input/%s.json";

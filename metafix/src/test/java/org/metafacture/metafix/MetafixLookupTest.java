@@ -82,7 +82,7 @@ public class MetafixLookupTest {
                 .withHeader("Content-Type", "text/turtle")
                 .withBody(responseBody)));
 
-        //stub for CSV
+        // stub for CSV
         urlPattern = WireMock.urlPathEqualTo(CSV_PATH);
         responseBody = loadFile(CSV_PATH);
         WIRE_MOCK_SERVER.stubFor(WireMock.get(urlPattern).willReturn(WireMock.aResponse().withBody(responseBody)));

@@ -328,7 +328,7 @@ public class MetafixBindTest {
                 " if all_contain('c.name', 'University')",
                 "  add_field('author[].$last.type', 'Organization')",
                 " else",
-                "  add_field('author[].$last.type', 'Person')", //",
+                "  add_field('author[].$last.type', 'Person')",
                 " end",
                 "end",
                 "remove_field('creator')"),
