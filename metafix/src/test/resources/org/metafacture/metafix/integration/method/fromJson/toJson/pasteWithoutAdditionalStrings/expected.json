@@ -1,0 +1,13 @@
+{
+  "name" : "Blacky",
+  "type" : "bird",
+  "combine" : "Blacky bird"
+}
+{
+  "name" : "Test",
+  "test_1" : "test_1"
+}
+{
+  "test_1" : "test_1",
+  "test_2" : "test_2"
+}
