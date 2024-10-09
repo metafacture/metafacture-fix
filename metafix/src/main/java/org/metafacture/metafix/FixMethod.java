@@ -154,6 +154,13 @@ public enum FixMethod implements FixFunction { // checkstyle-disable-line ClassD
             metafix.getVars().putAll(options);
         }
     },
+    to_var {
+        @Override
+        public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
+            final Value value = record.get(params.get(0));
+            metafix.getVars().put(params.get(1), Value.isNull(value) ? "" : value.toString());
+        }
+    },
 
     // RECORD-LEVEL METHODS:
 
