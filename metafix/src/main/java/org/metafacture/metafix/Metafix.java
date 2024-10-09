@@ -231,7 +231,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
         flattener.startRecord(identifier);
         entityCountStack.clear();
         entityCount = 0;
-        entityCountStack.add(Integer.valueOf(entityCount));
+        entityCountStack.add(entityCount);
         recordIdentifier = identifier;
         entities = new ArrayList<>();
     }
@@ -309,13 +309,13 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
         addValue(name, value);
         entities.add(value);
 
-        entityCountStack.push(Integer.valueOf(++entityCount));
+        entityCountStack.push(++entityCount);
         flattener.startEntity(name);
     }
 
     @Override
     public void endEntity() {
-        entityCountStack.pop().intValue();
+        entityCountStack.pop();
         flattener.endEntity();
     }
 
