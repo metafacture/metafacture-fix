@@ -93,6 +93,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
     private boolean repeatedFieldsToEntities;
     private boolean strictnessHandlesProcessExceptions;
     private int entityCount;
+    private int maxEntityCount = Integer.getInteger("org.metafacture.metafix.maxEntityCount", -1);
 
     public Metafix() {
         this(NO_VARS);
@@ -231,7 +232,7 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
         flattener.startRecord(identifier);
         entityCountStack.clear();
         entityCount = 0;
-        entityCountStack.add(Integer.valueOf(entityCount));
+        entityCountStack.add(entityCount);
         recordIdentifier = identifier;
         entities = new ArrayList<>();
     }
@@ -305,22 +306,36 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
             throw new IllegalArgumentException("Entity name must not be null.");
         }
 
+        ++entityCount;
+        if (maxEntityCountExceeded()) {
+            LOG.debug("Maximum number of entities exceeded: {}/{}", entityCount, maxEntityCount);
+            return;
+        }
+
         final Value value = isArrayName(name) ? Value.newArray() : Value.newHash();
         addValue(name, value);
         entities.add(value);
 
-        entityCountStack.push(Integer.valueOf(++entityCount));
+        entityCountStack.push(entityCount);
         flattener.startEntity(name);
     }
 
     @Override
     public void endEntity() {
-        entityCountStack.pop().intValue();
+        if (maxEntityCountExceeded()) {
+            return;
+        }
+
+        entityCountStack.pop();
         flattener.endEntity();
     }
 
     @Override
     public void literal(final String name, final String value) {
+        if (entityCountStack.size() > 1 && maxEntityCountExceeded()) {
+            return;
+        }
+
         LOG.debug("Putting '{}': '{}'", name, value);
         flattener.literal(name, value);
     }
@@ -428,6 +443,18 @@ public class Metafix implements StreamPipe<StreamReceiver>, Maps { // checkstyle
 
     public String getEntityMemberName() {
         return entityMemberName;
+    }
+
+    public void setMaxEntityCount(final int maxEntityCount) {
+        this.maxEntityCount = maxEntityCount;
+    }
+
+    public int getMaxEntityCount() {
+        return maxEntityCount;
+    }
+
+    private boolean maxEntityCountExceeded() {
+        return maxEntityCount >= 0 && entityCount > maxEntityCount;
     }
 
     public enum Strictness {
