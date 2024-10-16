@@ -47,3 +47,13 @@ application {
     applicationDefaultJvmArgs = ["-agentlib:hprof=heap=sites,cpu=samples,depth=${depth},cutoff=${cutoff},file=${file}.hprof.txt"]
   }
 }
+
+tasks.withType(JavaExec) {
+  doFirst {
+    def prefix = project.group + '.'
+
+    System.properties.each { k, v ->
+      if (k.startsWith(prefix)) systemProperties[k] = v
+    }
+  }
+}
