@@ -164,10 +164,22 @@ public enum FixMethod implements FixFunction { // checkstyle-disable-line ClassD
 
     // RECORD-LEVEL METHODS:
 
+    add_array {
+        @Override
+        public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
+            set_array.apply(metafix, record, params, options);
+        }
+    },
     add_field {
         @Override
         public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
             record.set(params.get(0), new Value(params.get(1)));
+        }
+    },
+    add_hash {
+        @Override
+        public void apply(final Metafix metafix, final Record record, final List<String> params, final Map<String, String> options) {
+            set_hash.apply(metafix, record, params, options);
         }
     },
     array { // array-from-hash
