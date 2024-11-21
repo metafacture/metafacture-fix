@@ -30,6 +30,9 @@ dependencies {
   implementation "org.metafacture:metafacture-xml:${versions.metafacture}"
   implementation "org.metafacture:metafacture-yaml:${versions.metafacture}"
   implementation "org.metafacture:metamorph:${versions.metafacture}"
+  runtimeOnly 'org.apache.logging.log4j:log4j-core'
+  implementation 'org.apache.logging.log4j:log4j-1.2-api:2.9.1'
+  implementation 'ch.qos.logback:logback-classic:1.3.14'
 
   implementation('org.antlr:antlr-runtime') {
     version { strictly versions.antlr }
