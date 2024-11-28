@@ -10,7 +10,7 @@
     </appender>
 
     <root>
-        <priority value="INFO" />
+        <priority value="${org.metafacture.metafix.logLevel}" />
         <appender-ref ref="stdout" />
     </root>
 
