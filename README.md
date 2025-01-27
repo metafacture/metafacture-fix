@@ -1,3 +1,6 @@
+> [!NOTE]
+> This repository has been merged into [metafacture-core](https://github.com/metafacture/metafacture-core) (see the associated [issue](https://github.com/metafacture/metafacture-core/issues/577) for more information). All future developments and contributions will happen there. For updated usage instructions, see the core [README](https://github.com/metafacture/metafacture-core/blob/master/README.md#getting-started).
+
 # Metafacture Fix
 
 Metafacture Fix (Metafix) is work in progress towards tools and an implementation of the Fix language for [Metafacture](https://metafacture.org/) as an alternative to configuring data transformations with [Metamorph](https://github.com/metafacture/metafacture-core/wiki#morph). Inspired by [Catmandu Fix](https://librecat.org/Catmandu/#fix-language), Metafix processes metadata not as a continuous data stream but as discrete records. The basic idea is to rebuild constructs from the (Catmandu) Fix language like [functions](https://librecat.org/Catmandu/#functions), [selectors](https://librecat.org/Catmandu/#selectors) and [binds](https://librecat.org/Catmandu/#binds) in Java and combine with additional functionalities from the Metamorph toolbox.
